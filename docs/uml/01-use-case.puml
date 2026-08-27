@@ -1,0 +1,114 @@
+@startuml Sunrise-Dental-Clinic-Use-Case
+' =====================================================================
+'  CIS6003 Advanced Programming - WRIT1
+'  Sunrise Dental Clinic Appointment & Patient Management System
+'  Task A - Use Case Diagram        Author: Thanujaya Hasaranga
+' =====================================================================
+left to right direction
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam ArrowColor #0C7B72
+skinparam ArrowFontSize 11
+skinparam packageStyle rectangle
+skinparam nodesep 20
+skinparam ranksep 60
+skinparam DefaultFontName "Segoe UI"
+skinparam actor {
+  BorderColor #0E2B2E
+  BackgroundColor #E9F0EE
+  FontSize 13
+}
+skinparam usecase {
+  BorderColor #0C7B72
+  BackgroundColor #FFFFFF
+  FontSize 12
+}
+skinparam rectangle {
+  BorderColor #0E2B2E
+  FontSize 13
+}
+
+actor "Staff User"    as Staff
+actor "Receptionist"  as Rec
+actor "Dentist"       as Den
+actor "Administrator" as Adm
+Staff <|-- Rec
+Staff <|-- Den
+Staff <|-- Adm
+
+rectangle "Sunrise Dental Clinic Management System" {
+  rectangle "Session" as P1 {
+    usecase "UC-01\nLog In" as UC01
+    usecase "UC-02\nValidate Credentials" as UC02
+    usecase "UC-03\nExit System" as UC03
+    usecase "UC-04\nView Help" as UC04
+  }
+  rectangle "Patient Records" as P2 {
+    usecase "UC-05\nSearch Patient" as UC05
+    usecase "UC-06\nRegister New Patient" as UC06
+  }
+  rectangle "Appointment Scheduling" as P3 {
+    usecase "UC-07\nBook Appointment" as UC07
+    usecase "UC-08\nCheck Dentist\nAvailability" as UC08
+    usecase "UC-09\nSuggest Next\nAvailable Slot" as UC09
+    usecase "UC-10\nSearch & Display\nAppointment" as UC10
+    usecase "UC-11\nCancel Appointment" as UC11
+    usecase "UC-12\nReschedule\nAppointment" as UC12
+    usecase "UC-13\nMark Appointment\nCompleted" as UC13
+    usecase "UC-14\nSend Notification" as UC14
+  }
+  rectangle "Billing" as P4 {
+    usecase "UC-15\nGenerate Bill" as UC15
+    usecase "UC-16\nCalculate Total Cost" as UC16
+    usecase "UC-17\nApply Discount" as UC17
+    usecase "UC-18\nPrint Receipt" as UC18
+  }
+  rectangle "Administration" as P5 {
+    usecase "UC-19\nManage Treatment\nTypes & Prices" as UC19
+    usecase "UC-20\nManage Staff &\nDentist Records" as UC20
+    usecase "UC-21\nView Management\nReports" as UC21
+    usecase "UC-22\nView Audit Log" as UC22
+  }
+}
+actor "Notification\nGateway" as Gateway
+
+Staff -- UC01
+Staff -- UC03
+Staff -- UC04
+Rec -- UC05
+Rec -- UC06
+Rec -- UC07
+Rec -- UC10
+Rec -- UC11
+Rec -- UC12
+Rec -- UC15
+Den -- UC10
+Den -- UC13
+Adm -- UC19
+Adm -- UC20
+Adm -- UC21
+Adm -- UC22
+UC14 --> Gateway
+
+UC01 ..> UC02 : <<include>>
+UC07 ..> UC08 : <<include>>
+UC15 ..> UC16 : <<include>>
+UC07 ..> UC14 : <<include>>
+UC11 ..> UC14 : <<include>>
+UC12 ..> UC14 : <<include>>
+
+UC06 ..> UC05 : <<extend>>\n[patient not found]
+UC09 ..> UC07 : <<extend>>\n[requested slot\nunavailable]
+UC17 ..> UC16 : <<extend>>\n[patient qualifies\nfor discount]
+UC18 ..> UC15 : <<extend>>\n[staff chooses\nto print]
+
+legend right
+  |= Notation |= Meaning |
+  | <<include>> | Base use case **always** performs this behaviour.\n Arrow points **from base to included**. |
+  | <<extend>> | **Optional** behaviour, performed only when the\n [guard condition] holds. Arrow points **from the\n extending use case to the base** - the opposite way. |
+  | Generalisation | Receptionist, Dentist and Administrator are all\n Staff Users, so Log In / Exit / Help are modelled once. |
+  | Design decision | Authentication is a **precondition** of every use case,\n not an <<include>> on each one - 21 such lines would\n carry no information. Stated in each specification. |
+endlegend
+
+@enduml

@@ -1,0 +1,205 @@
+@startuml Sunrise-Dental-Clinic-Design-Class
+' =====================================================================
+'  CIS6003 Advanced Programming - WRIT1
+'  Sunrise Dental Clinic Appointment & Patient Management System
+'  Task B - Design / Architecture Class Diagram
+'           Shows the three physical tiers and the design patterns
+'           applied in each.          Author: Thanujaya Hasaranga
+' =====================================================================
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 4
+skinparam ArrowColor #0E2B2E
+skinparam ArrowFontSize 11
+skinparam nodesep 28
+skinparam ranksep 50
+skinparam DefaultFontName "Segoe UI"
+skinparam packageStyle rectangle
+
+skinparam class {
+  BorderColor #0E2B2E
+  BackgroundColor #FFFFFF
+  HeaderBackgroundColor #E9F0EE
+  FontSize 12
+  AttributeFontSize 11
+}
+skinparam package {
+  BorderColor #0C7B72
+  FontColor #0C7B72
+  FontSize 13
+  FontStyle bold
+}
+
+' =====================================================================
+'  TIER 1 - PRESENTATION   (Java Swing client, separate process)
+' =====================================================================
+package "TIER 1 - presentation.client  [Swing desktop]" as T1 {
+
+  class MainMenuFrame <<boundary>> {
+    - session : Session
+    + showFor(role : Role) : void
+  }
+  class LoginFrame <<boundary>>
+  class BookAppointmentFrame <<boundary>>
+  class SearchAppointmentFrame <<boundary>>
+  class BillingFrame <<boundary>>
+  class ReportFrame <<boundary>>
+  class HelpFrame <<boundary>>
+
+  class AppointmentServiceProxy <<Proxy>> {
+    - baseUrl : String
+    - httpClient : HttpClient
+    + book(dto : BookingRequestDTO) : AppointmentDTO
+    + findByNumber(no : String) : AppointmentDTO
+    + cancel(no : String, reason : String) : void
+  }
+
+  class SessionHolder <<Singleton>> {
+    - {static} instance : SessionHolder
+    - token : String
+    - expiresAt : LocalDateTime
+    + {static} getInstance() : SessionHolder
+    + isExpired() : boolean
+  }
+}
+
+' =====================================================================
+'  TIER 2 - BUSINESS   (Spring Boot REST service, separate process)
+' =====================================================================
+package "TIER 2 - api  [REST controllers]" as T2A {
+  class AuthController <<control>> {
+    + login(req : LoginRequest) : ResponseEntity<SessionDTO>
+  }
+  class AppointmentController <<control>> {
+    + book(req : BookingRequestDTO) : ResponseEntity<AppointmentDTO>
+    + findByNumber(no : String) : ResponseEntity<AppointmentDTO>
+    + cancel(no : String) : ResponseEntity<Void>
+  }
+  class BillingController <<control>>
+  class ReportController <<control>>
+
+  class AppointmentMapper <<Adapter>> {
+    + toDTO(entity : Appointment) : AppointmentDTO
+    + toEntity(dto : BookingRequestDTO) : Appointment
+  }
+}
+
+package "TIER 2 - service  [business logic]" as T2B {
+  class AuthenticationService
+  class AppointmentService {
+    + book(request : BookingRequest) : Appointment
+    - assertNoClash(d : Dentist, from : LocalTime, to : LocalTime) : void
+  }
+  class BillingFacade <<Facade>> {
+    + generateBill(appointmentNo : String) : Bill
+  }
+  class ReportService
+}
+
+package "TIER 2 - pattern  [GoF participants]" as T2C {
+  interface DiscountStrategy <<Strategy>> {
+    + {abstract} calculate(subtotal : BigDecimal) : BigDecimal
+  }
+  class SeniorCitizenDiscount
+  class LoyaltyDiscount
+  class StaffDiscount
+  class NoDiscount
+
+  interface AppointmentObserver <<Observer>> {
+    + {abstract} onAppointmentCreated(a : Appointment) : void
+  }
+  class NotificationObserver
+  class AuditLogObserver
+
+  abstract class AbstractReport <<Template Method>> {
+    + {final} generate() : Report
+    # {abstract} buildBody() : Section
+  }
+  class DailyRevenueReport
+  class DentistUtilisationReport
+  class ReportFactory <<Factory Method>> {
+    + {static} create(type : ReportType) : AbstractReport
+  }
+}
+
+package "TIER 2 - repository  [DAO]" as T2D {
+  interface AppointmentRepository <<Repository>> {
+    + save(a : Appointment) : Appointment
+    + findByAppointmentNo(no : String) : Optional<Appointment>
+    + findClashes(dentistId : Long, d : LocalDate, from : LocalTime, to : LocalTime) : List<Appointment>
+  }
+  interface PatientRepository <<Repository>>
+  interface BillRepository <<Repository>>
+}
+
+' =====================================================================
+'  TIER 3 - DATA   (MySQL server, separate process)
+' =====================================================================
+package "TIER 3 - MySQL  [data]" as T3 {
+  class "«table» appointment" as TBL_APP
+  class "«table» patient"     as TBL_PAT
+  class "«table» bill"        as TBL_BILL
+  class "«trigger» trg_appointment_no_overlap" as TRG {
+    Rejects an INSERT or UPDATE whose
+    time range overlaps an existing
+    BOOKED appointment for the same dentist.
+  }
+  class "«procedure» sp_generate_bill" as SP {
+    Sums treatment prices, adds the
+    dentist consultation fee, applies
+    the discount, writes bill + lines.
+  }
+}
+
+' ---------------------------------------------------------------------
+'  RELATIONSHIPS
+' ---------------------------------------------------------------------
+
+LoginFrame              ..> AppointmentServiceProxy
+MainMenuFrame           ..> AppointmentServiceProxy
+BookAppointmentFrame    ..> AppointmentServiceProxy
+SearchAppointmentFrame  ..> AppointmentServiceProxy
+BillingFrame            ..> AppointmentServiceProxy
+ReportFrame             ..> AppointmentServiceProxy
+MainMenuFrame           ..> SessionHolder
+
+AppointmentServiceProxy ..> AppointmentController : <<HTTP / JSON>>
+
+AuthController        ..> AuthenticationService
+AppointmentController ..> AppointmentService
+AppointmentController ..> AppointmentMapper
+BillingController     ..> BillingFacade
+ReportController      ..> ReportService
+
+AppointmentService "1" o-- "0..*" AppointmentObserver : notifies >
+AppointmentService ..> AppointmentRepository
+BillingFacade      ..> DiscountStrategy : uses >
+BillingFacade      ..> BillRepository
+ReportService      ..> ReportFactory
+ReportFactory      ..> AbstractReport : creates >
+
+DiscountStrategy <|.. SeniorCitizenDiscount
+DiscountStrategy <|.. LoyaltyDiscount
+DiscountStrategy <|.. StaffDiscount
+DiscountStrategy <|.. NoDiscount
+AppointmentObserver <|.. NotificationObserver
+AppointmentObserver <|.. AuditLogObserver
+AbstractReport <|-- DailyRevenueReport
+AbstractReport <|-- DentistUtilisationReport
+
+AppointmentRepository ..> TBL_APP : <<JDBC>>
+PatientRepository     ..> TBL_PAT : <<JDBC>>
+BillRepository        ..> TBL_BILL : <<JDBC>>
+BillRepository        ..> SP       : calls >
+TBL_APP               ..> TRG      : enforced by >
+
+legend right
+  |= Tier |= Process |= Patterns applied |
+  | 1 Presentation | Swing client JAR | Proxy, Singleton, MVC |
+  | 2 Business | Spring Boot, port 8080 | Facade, Strategy, Observer, Factory Method,\n Template Method, Adapter/DTO, Repository,\n DAO, Builder, dependency injection |
+  | 3 Data | MySQL, port 3306 | Trigger and stored procedure enforcing\n business rules at the data tier |
+  | | | The HTTP hop between tier 1 and tier 2 is what\n makes this a **distributed** application rather\n than a layered monolith. |
+endlegend
+
+@enduml
