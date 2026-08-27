@@ -1,0 +1,154 @@
+@startuml Seq-02-Book-Appointment
+' =====================================================================
+'  CIS6003 Advanced Programming - WRIT1
+'  Task A - Sequence Diagram 2 of 3 : UC-07 Book Appointment
+'  Covers FR-07 to FR-12, FR-20, FR-24, NFR-04, NFR-05
+'  Shows: the HTTP hop, the Observer pattern firing, and the
+'         database trigger acting as the final clash defence.
+'  Author: Thanujaya Hasaranga
+' =====================================================================
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam DefaultFontName "Segoe UI"
+skinparam ArrowColor #0E2B2E
+skinparam sequenceMessageAlign first
+skinparam maxMessageSize 230
+
+skinparam sequence {
+  ParticipantBorderColor #0E2B2E
+  ParticipantBackgroundColor #E9F0EE
+  ActorBorderColor #0E2B2E
+  ActorBackgroundColor #E9F0EE
+  LifeLineBorderColor #B4C8C4
+  LifeLineBackgroundColor #F5F8F7
+  BoxBorderColor #0C7B72
+  BoxFontColor #0C7B72
+  GroupBorderColor #0C7B72
+  GroupHeaderFontColor #0C7B72
+}
+
+actor "Receptionist" as User
+
+box "TIER 1 - Swing client" #FCFEFD
+  participant "BookAppointmentFrame\n<<boundary>>" as UI
+  participant "AppointmentServiceProxy\n<<Proxy>>" as Proxy
+end box
+
+box "TIER 2 - Spring Boot REST service" #FCFEFD
+  participant "AppointmentController\n<<control>>" as Ctrl
+  participant "AppointmentService" as Svc
+  participant "DentistSchedule" as Sched
+  participant "AppointmentRepository\n<<Repository>>" as Repo
+  participant "AppointmentObserver\n<<Observer>>" as Obs
+end box
+
+database "MySQL\n+ trg_appointment_no_overlap" as DB
+
+autonumber "<b>[00]"
+
+User -> UI ++ : select patient, dentist,\ntreatment, date, time
+UI -> UI : validateClientSide()
+note right of UI
+  Date not in the past, time inside
+  08:00-20:00 Mon-Sat, all required
+  fields present (FR-12, ASM-06).
+end note
+
+UI -> Proxy ++ : book(BookingRequestDTO)
+Proxy -> Ctrl ++ : **POST /api/appointments**\n{ patientNo, dentistId,\n  treatmentCode, date, startTime }
+note over Proxy, Ctrl #E0F0ED
+  HTTP boundary - tier 1 to tier 2
+end note
+
+Ctrl -> Ctrl : AppointmentMapper.toEntity(dto)
+Ctrl -> Svc ++ : book(request)
+
+Svc -> Repo ++ : findTreatmentByCode(code)
+return TreatmentType(price, durationMinutes)
+
+Svc -> Svc : endTime = startTime\n+ durationMinutes
+note right of Svc
+  ASM-07. Duration comes from the treatment
+  type. Without it an appointment would be a
+  point in time and clash detection would be
+  meaningless.
+end note
+
+Svc -> Repo ++ : findClashes(dentistId, date,\nstartTime, endTime, buffer)
+Repo -> DB ++ : SELECT * FROM appointment\nWHERE dentist_id = ? AND appt_date = ?\nAND status = 'BOOKED'\nAND start_time < ? AND end_time > ?
+return clashing rows
+return List<Appointment>
+
+alt#Gold #FDF6EE clash found  -  extend UC-09
+
+  Svc -> Sched ++ : nextFreeSlots(durationMinutes, 3)
+  Sched -> Sched : scan the working day\naround existing bookings
+  return [11:40, 13:00, 14:30]
+
+  Svc -> Ctrl : SlotUnavailableException(suggestions)
+  Ctrl --> Proxy : **409 Conflict**\n{ message, suggestedSlots[] }
+  Proxy --> UI : SlotUnavailableException
+  UI -> User : "Dr. Perera is booked 10:00-11:30.\nNext free slots: 11:40, 13:00, 14:30"
+  note right of UI #FDF6EE
+    FR-11 / ASM-09. Refusing the booking solves
+    double booking; **offering an alternative**
+    is what addresses the clinic's stated
+    problem of long waiting times.
+  end note
+
+else #F5FBFA slot is free
+
+  Svc -> Repo ++ : save(appointment)
+  Repo -> DB ++ : INSERT INTO appointment (...)\nVALUES (...)
+
+  DB -> DB : trg_appointment_no_overlap\nBEFORE INSERT
+  note right of DB #E0F0ED
+    NFR-05. Third and final layer of defence.
+    Between step 12 and step 20 another
+    receptionist on another machine could have
+    taken the same slot - only the database,
+    inside the transaction, can rule that out.
+  end note
+
+  alt#Gold #FBEDEB trigger rejects  -  concurrent booking won the race
+
+    DB --> Repo : SIGNAL SQLSTATE '45000'\n'Overlapping appointment'
+    Repo --> Svc : DataIntegrityViolationException
+    Svc -> Ctrl : SlotUnavailableException
+    Ctrl --> Proxy : **409 Conflict**
+    Proxy --> UI : SlotUnavailableException
+    UI -> User : "That slot was just taken.\nPlease choose another."
+
+  else #F5FBFA accepted
+
+    DB -> DB : appointment_no generated\nas APT-2026-000147
+    return generated appointment_no
+    return persisted Appointment
+
+    Svc ->> Obs ++ : onAppointmentCreated(appointment)
+    note right of Obs #E0F0ED
+      Observer pattern. AppointmentService does not
+      know that notifications or auditing exist -
+      it publishes an event and returns. New
+      listeners can be added without changing it.
+    end note
+    Obs ->> DB : INSERT INTO audit_entry (...)
+    Obs ->> Obs : NotificationObserver\n.sendConfirmation()
+    note right of Obs
+      FR-20. Stubbed in this implementation:
+      the notifier logs the message it would
+      have sent. Stated as such in the report.
+    end note
+    deactivate Obs
+
+    return Appointment
+    Ctrl -> Ctrl : AppointmentMapper.toDTO(appointment)
+    Ctrl --> Proxy -- : **201 Created**\n{ appointmentNo, dentist,\n  date, startTime, endTime }
+    return AppointmentDTO
+    UI -> User -- : "Appointment booked.\nNumber: APT-2026-000147"
+
+  end
+end
+
+@enduml
