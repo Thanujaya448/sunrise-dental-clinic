@@ -1,0 +1,192 @@
+@startuml Sunrise-Dental-Clinic-Domain-Class
+' =====================================================================
+'  CIS6003 Advanced Programming - WRIT1
+'  Sunrise Dental Clinic Appointment & Patient Management System
+'  Task A - Domain Class Diagram           Author: Thanujaya Hasaranga
+' =====================================================================
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 4
+skinparam ArrowColor #0E2B2E
+skinparam ArrowFontSize 11
+skinparam nodesep 30
+skinparam ranksep 55
+skinparam DefaultFontName "Segoe UI"
+skinparam packageStyle rectangle
+
+skinparam class {
+  BorderColor #0E2B2E
+  BackgroundColor #FFFFFF
+  HeaderBackgroundColor #E9F0EE
+  FontSize 12
+  AttributeFontSize 11
+}
+skinparam package {
+  BorderColor #0C7B72
+  FontColor #0C7B72
+  FontSize 13
+  FontStyle bold
+}
+
+package "domain" {
+
+  abstract class StaffUser {
+    - staffId : Long
+    - username : String
+    - passwordHash : String
+    - fullName : String
+    - role : Role
+    - active : boolean
+    + authenticate(rawPassword : String) : boolean
+    + hasPermission(action : Permission) : boolean
+    + {abstract} getDashboardView() : String
+  }
+
+  enum Role {
+    RECEPTIONIST
+    DENTIST
+    ADMINISTRATOR
+  }
+
+  class Receptionist {
+    - deskNumber : String
+    + getDashboardView() : String
+  }
+
+  class Dentist {
+    - registrationNo : String
+    - specialisation : String
+    - consultationFee : BigDecimal
+    + getDashboardView() : String
+    + getConsultationFee() : BigDecimal
+  }
+
+  class Administrator {
+    + getDashboardView() : String
+  }
+
+  class Patient {
+    - patientId : Long
+    - patientNo : String
+    - fullName : String
+    - address : String
+    - contactNumber : String
+    - email : String
+    - dateOfBirth : LocalDate
+    - registeredOn : LocalDateTime
+    + getAge() : int
+    + isSeniorCitizen() : boolean
+    + getVisitCount() : int
+  }
+
+  class Appointment {
+    - appointmentId : Long
+    - appointmentNo : String
+    - appointmentDate : LocalDate
+    - startTime : LocalTime
+    - endTime : LocalTime
+    - status : AppointmentStatus
+    - notes : String
+    - createdOn : LocalDateTime
+    + getDurationMinutes() : int
+    + overlapsWith(other : Appointment) : boolean
+    + cancel(reason : String) : void
+    + markCompleted() : void
+    + isBillable() : boolean
+  }
+
+  enum AppointmentStatus {
+    BOOKED
+    COMPLETED
+    CANCELLED
+    NO_SHOW
+  }
+
+  class TreatmentType {
+    - treatmentId : Long
+    - code : String
+    - name : String
+    - price : BigDecimal
+    - durationMinutes : int
+    - active : boolean
+  }
+
+  class DentistSchedule {
+    - scheduleDate : LocalDate
+    - openingTime : LocalTime
+    - closingTime : LocalTime
+    - bufferMinutes : int
+    + isSlotFree(start : LocalTime, minutes : int) : boolean
+    + nextFreeSlots(minutes : int, count : int) : List<LocalTime>
+  }
+
+  class Bill {
+    - billId : Long
+    - billNo : String
+    - issuedOn : LocalDateTime
+    - consultationFee : BigDecimal
+    - treatmentSubtotal : BigDecimal
+    - discountAmount : BigDecimal
+    - totalPayable : BigDecimal
+    - paymentStatus : PaymentStatus
+    + calculateTotal() : BigDecimal
+    + addLine(line : BillLine) : void
+  }
+
+  class BillLine {
+    - lineNo : int
+    - description : String
+    - unitPrice : BigDecimal
+    - quantity : int
+    + getLineTotal() : BigDecimal
+  }
+
+  enum PaymentStatus {
+    UNPAID
+    PAID
+  }
+
+  class AuditEntry {
+    - entryId : Long
+    - performedBy : String
+    - action : String
+    - entityRef : String
+    - performedOn : LocalDateTime
+  }
+}
+
+' ---- generalisation --------------------------------------------------
+StaffUser <|-- Receptionist
+StaffUser <|-- Dentist
+StaffUser <|-- Administrator
+
+' ---- associations with multiplicity ---------------------------------
+Patient   "1"    -- "0..*" Appointment  : books >
+Dentist   "1"    -- "0..*" Appointment  : treats >
+Appointment "0..*" -- "1..*" TreatmentType : consists of >
+Appointment "1"  -- "0..1" Bill          : billed by >
+StaffUser "1"    -- "0..*" Appointment  : created by >
+
+' ---- COMPOSITION (filled diamond) -----------------------------------
+'  A BillLine has no identity or meaning outside its Bill. Deleting the
+'  Bill deletes its lines. Lifetime is owned by the whole.
+Bill "1" *-- "1..*" BillLine : contains >
+
+' ---- AGGREGATION (hollow diamond) -----------------------------------
+'  A DentistSchedule is a day-view that groups existing Appointments.
+'  Discarding the schedule object does NOT delete the appointments -
+'  they belong to the Patient and the Dentist, not to the schedule.
+DentistSchedule "1" o-- "0..*" Appointment : groups >
+Dentist "1" -- "0..*" DentistSchedule : works >
+
+
+legend right
+  |= Symbol |= Relationship |= Why it is used here |
+  | ——▷ | Generalisation | Receptionist / Dentist / Administrator **are** StaffUsers |
+  | ——— | Association | Independent objects that know about each other,\n labelled with multiplicity at both ends |
+  | ——◆ | **Composition** | Bill ◆ BillLine - a line has no meaning without its\n bill and is destroyed with it (owned lifetime) |
+  | ——◇ | **Aggregation** | DentistSchedule ◇ Appointment - the schedule groups\n appointments that exist independently of it |
+endlegend
+
+@enduml
