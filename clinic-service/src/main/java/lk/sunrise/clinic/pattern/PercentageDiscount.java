@@ -22,8 +22,10 @@ abstract class PercentageDiscount implements DiscountStrategy {
 
     @Override
     public BigDecimal calculate(BigDecimal treatmentSubtotal) {
-        // TDD RED STEP - deliberately not implemented yet.
-        return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        if (treatmentSubtotal == null || treatmentSubtotal.signum() <= 0) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        return treatmentSubtotal.multiply(rate).setScale(2, RoundingMode.HALF_UP);
     }
 
     @Override
