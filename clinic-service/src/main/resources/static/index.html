@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sunrise Dental Clinic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="login-view" class="login-shell">
+  <form class="login-card" id="login-form" autocomplete="off">
+    <div class="brand">
+      <div class="brand-mark">SD</div>
+      <div>
+        <h1>Sunrise Dental Clinic</h1>
+        <p>Appointment &amp; patient management</p>
+      </div>
+    </div>
+
+    <label for="username">Username</label>
+    <input id="username" name="username" type="text" required autofocus>
+
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" required>
+
+    <p class="form-error" id="login-error" role="alert"></p>
+
+    <button class="btn btn-primary btn-block" type="submit" id="login-btn">Sign in</button>
+
+    <p class="hint">
+      Demo accounts &mdash;
+      <code>rmenaka</code> / <code>Recep@123</code> &middot;
+      <code>dperera</code> / <code>Dentist@123</code> &middot;
+      <code>admin</code> / <code>Admin@123</code>
+    </p>
+  </form>
+</div>
+
+<!-- ================= APPLICATION ================= -->
+<div id="app-view" hidden>
+
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-mark small">SD</div>
+      <span>Sunrise Dental Clinic</span>
+    </div>
+    <nav class="tabs" id="tabs"></nav>
+    <div class="topbar-user">
+      <div class="who">
+        <strong id="who-name"></strong>
+        <span id="who-role"></span>
+      </div>
+      <span class="session-pill" id="session-pill" title="Session expiry">--:--</span>
+      <button class="btn btn-ghost" id="logout-btn">Sign out</button>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ---------- BOOK ---------- -->
+    <section class="panel" id="panel-book" hidden>
+      <div class="panel-head">
+        <h2>Book an appointment</h2>
+        <p>Find the patient, then choose a dentist, treatment and time.</p>
+      </div>
+
+      <div class="split">
+        <div class="col">
+          <h3>1. Patient</h3>
+          <div class="row">
+            <input id="patient-search" type="search" placeholder="Name, phone or patient number">
+            <button class="btn" id="patient-search-btn">Search</button>
+            <button class="btn" id="patient-new-btn">New patient</button>
+          </div>
+          <div class="table-wrap">
+            <table id="patient-table">
+              <thead><tr><th>Patient no</th><th>Name</th><th>Contact</th><th class="num">Visits</th></tr></thead>
+              <tbody><tr class="empty"><td colspan="4">Search for a patient to begin.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="col">
+          <h3>2. Appointment</h3>
+          <div class="field">
+            <label>Selected patient</label>
+            <div class="selected" id="selected-patient">None selected</div>
+          </div>
+          <div class="field">
+            <label for="book-dentist">Dentist</label>
+            <select id="book-dentist"></select>
+          </div>
+          <div class="field">
+            <label for="book-treatment">Treatment</label>
+            <select id="book-treatment"></select>
+            <small id="treatment-hint"></small>
+          </div>
+          <div class="field-pair">
+            <div class="field">
+              <label for="book-date">Date</label>
+              <input id="book-date" type="date">
+            </div>
+            <div class="field">
+              <label for="book-time">Start time</label>
+              <input id="book-time" type="time" step="900" value="09:00">
+            </div>
+          </div>
+          <div class="field">
+            <label for="book-notes">Notes (optional)</label>
+            <input id="book-notes" type="text" maxlength="300">
+          </div>
+          <button class="btn btn-primary btn-block" id="book-btn">Book appointment</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- SEARCH ---------- -->
+    <section class="panel" id="panel-search" hidden>
+      <div class="panel-head">
+        <h2>Search appointments</h2>
+        <p>Look up one appointment by number, or browse a whole day.</p>
+      </div>
+
+      <div class="row">
+        <input id="appt-no" type="text" placeholder="APT-2026-000005">
+        <button class="btn" id="appt-find-btn">Find</button>
+        <span class="divider"></span>
+        <input id="appt-day" type="date">
+        <button class="btn" id="appt-day-btn">Show day</button>
+      </div>
+
+      <div class="table-wrap">
+        <table id="appt-table">
+          <thead><tr><th>Appointment no</th><th>Time</th><th>Patient</th><th>Dentist</th><th>Status</th></tr></thead>
+          <tbody><tr class="empty"><td colspan="5">Choose a day, or search by number.</td></tr></tbody>
+        </table>
+      </div>
+
+      <div id="appt-detail" class="detail" hidden></div>
+    </section>
+
+    <!-- ---------- BILLING ---------- -->
+    <section class="panel" id="panel-billing" hidden>
+      <div class="panel-head">
+        <h2>Billing &amp; receipts</h2>
+        <p>A bill can be produced once an appointment has been completed.</p>
+      </div>
+
+      <div class="row">
+        <input id="bill-appt-no" type="text" placeholder="Appointment number">
+        <button class="btn btn-primary" id="bill-generate-btn">Generate bill</button>
+        <span class="divider"></span>
+        <input id="bill-no" type="text" placeholder="Existing bill number">
+        <button class="btn" id="bill-find-btn">Find bill</button>
+      </div>
+
+      <div id="receipt-area" hidden>
+        <div class="receipt" id="receipt"></div>
+        <button class="btn" id="print-btn">Print receipt</button>
+      </div>
+    </section>
+
+    <!-- ---------- REPORTS ---------- -->
+    <section class="panel" id="panel-reports" hidden>
+      <div class="panel-head">
+        <h2>Management reports</h2>
+        <p>Each report answers one question the clinic manager has to act on.</p>
+      </div>
+      <div class="report-layout">
+        <ul class="report-list" id="report-list"></ul>
+        <div class="report-result">
+          <p class="report-question" id="report-question"></p>
+          <div class="table-wrap">
+            <table id="report-table"><thead></thead><tbody></tbody></table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- HELP ---------- -->
+    <section class="panel" id="panel-help" hidden>
+      <div class="panel-head">
+        <h2>Help</h2>
+        <p>Step-by-step instructions for clinic staff.</p>
+      </div>
+      <div class="help">
+        <h3>Booking an appointment</h3>
+        <ol>
+          <li>Open <b>Book</b>, then search for the patient by name, phone number or patient number.</li>
+          <li>Click their row to select them. If they are not listed, use <b>New patient</b> &mdash; the system allocates a number such as PAT-2026-000006.</li>
+          <li>Choose the dentist and treatment. The treatment sets how long the appointment lasts, so you never enter an end time.</li>
+          <li>Pick the date and start time, then press <b>Book appointment</b>.</li>
+          <li>Give the patient the appointment number shown in the confirmation.</li>
+        </ol>
+
+        <h3>If the slot is already taken</h3>
+        <p>Two appointments can never overlap for the same dentist. Rather than simply refusing, the system offers the next free times &mdash; click one to book it instead.</p>
+        <p>A ten-minute gap is always kept between a dentist's appointments, so a time immediately after another appointment may still be refused.</p>
+
+        <h3>After the visit</h3>
+        <p>The dentist marks the appointment <b>Completed</b>, or <b>No-show</b> if the patient did not arrive. Only a completed appointment can be billed.</p>
+
+        <h3>Producing a bill</h3>
+        <ol>
+          <li>Open <b>Billing</b> and enter the appointment number.</li>
+          <li>The total is the dentist's consultation fee plus treatments, less any discount the patient qualifies for. Discounts apply to treatments only.</li>
+          <li>Press <b>Print receipt</b>.</li>
+        </ol>
+        <p>Each appointment can be billed once. Trying again tells you so rather than creating a second bill.</p>
+
+        <h3>Sessions</h3>
+        <p>Your session ends automatically after 20 minutes of inactivity; the timer in the top right shows when. Always use <b>Sign out</b> when you leave the desk.</p>
+
+        <h3>Common messages</h3>
+        <ul>
+          <li><b>Your session has expired</b> &mdash; sign in again.</li>
+          <li><b>Your role does not permit this action</b> &mdash; the task belongs to another role. A receptionist cannot complete visits; a dentist cannot produce bills.</li>
+          <li>Five failed sign-ins lock the account. Only the Administrator can unlock it.</li>
+        </ul>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ================= DIALOGS ================= -->
+<dialog id="patient-dialog">
+  <form method="dialog" id="patient-form">
+    <h3>Register a new patient</h3>
+    <div class="field"><label for="np-name">Full name</label><input id="np-name" required></div>
+    <div class="field"><label for="np-address">Address</label><input id="np-address" required></div>
+    <div class="field"><label for="np-phone">Contact number</label><input id="np-phone" required placeholder="0712345678"></div>
+    <div class="field"><label for="np-email">Email (optional)</label><input id="np-email" type="email"></div>
+    <div class="field"><label for="np-dob">Date of birth</label><input id="np-dob" type="date" required></div>
+    <label class="check"><input id="np-staff" type="checkbox"> Clinic staff or immediate family</label>
+    <p class="form-error" id="np-error"></p>
+    <div class="dialog-actions">
+      <button class="btn" value="cancel" formnovalidate>Cancel</button>
+      <button class="btn btn-primary" id="np-save" value="save">Register</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="slots-dialog">
+  <h3>That slot is taken</h3>
+  <p id="slots-message"></p>
+  <div class="slot-options" id="slot-options"></div>
+  <div class="dialog-actions">
+    <button class="btn" id="slots-cancel">Choose another day</button>
+  </div>
+</dialog>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
