@@ -1,0 +1,187 @@
+@startuml Sunrise-Dental-Clinic-ERD
+' =====================================================================
+'  CIS6003 Advanced Programming - WRIT1
+'  Entity Relationship Diagram - physical model, MySQL 8
+'  Crow's foot notation.   Author: Thanujaya Hasaranga
+' =====================================================================
+
+hide circle
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam linetype ortho
+skinparam DefaultFontName "Segoe UI"
+skinparam nodesep 45
+skinparam ranksep 55
+skinparam ArrowColor #0E2B2E
+
+skinparam class {
+  BorderColor #0E2B2E
+  BackgroundColor #FFFFFF
+  HeaderBackgroundColor #E9F0EE
+  FontSize 12
+  AttributeFontSize 11
+}
+
+entity "**staff**" as staff {
+  *staff_id : BIGINT <<PK, AI>>
+  --
+  *username : VARCHAR(40) <<UQ>>
+  *password_hash : VARCHAR(72)
+  *full_name : VARCHAR(100)
+  *role : ENUM
+  *active : BOOLEAN
+  *failed_attempts : TINYINT
+  *locked : BOOLEAN
+  *created_on : DATETIME
+}
+
+entity "**receptionist**" as recep {
+  *staff_id : BIGINT <<PK, FK>>
+  --
+  *desk_number : VARCHAR(10)
+}
+
+entity "**dentist**" as dentist {
+  *dentist_id : BIGINT <<PK, AI>>
+  --
+  *staff_id : BIGINT <<FK, UQ>>
+  *registration_no : VARCHAR(20) <<UQ>>
+  *specialisation : VARCHAR(60)
+  *consultation_fee : DECIMAL(10,2)
+  *active : BOOLEAN
+}
+
+entity "**patient**" as patient {
+  *patient_id : BIGINT <<PK, AI>>
+  --
+  *patient_no : VARCHAR(20) <<UQ>>
+  *full_name : VARCHAR(100)
+  *address : VARCHAR(200)
+  *contact_number : VARCHAR(20)
+  email : VARCHAR(120)
+  *date_of_birth : DATE
+  *is_staff_family : BOOLEAN
+  *registered_on : DATETIME
+}
+
+entity "**treatment_type**" as treat {
+  *treatment_id : BIGINT <<PK, AI>>
+  --
+  *code : VARCHAR(6) <<UQ>>
+  *name : VARCHAR(80)
+  *price : DECIMAL(10,2)
+  *duration_minutes : SMALLINT
+  *active : BOOLEAN
+}
+
+entity "**appointment**" as appt {
+  *appointment_id : BIGINT <<PK, AI>>
+  --
+  *appointment_no : VARCHAR(20) <<UQ>>
+  *patient_id : BIGINT <<FK>>
+  *dentist_id : BIGINT <<FK>>
+  *appointment_date : DATE
+  *start_time : TIME
+  *end_time : TIME
+  *status : ENUM
+  notes : VARCHAR(300)
+  cancel_reason : VARCHAR(200)
+  *created_by : BIGINT <<FK>>
+  *created_on : DATETIME
+}
+
+entity "**appointment_treatment**" as at {
+  *appointment_id : BIGINT <<PK, FK>>
+  *treatment_id : BIGINT <<PK, FK>>
+  --
+  *quantity : SMALLINT
+  *unit_price : DECIMAL(10,2)
+  ..
+  price snapshot at booking time
+}
+
+entity "**bill**" as bill {
+  *bill_id : BIGINT <<PK, AI>>
+  --
+  *bill_no : VARCHAR(20) <<UQ>>
+  *appointment_id : BIGINT <<FK, UQ>>
+  *issued_on : DATETIME
+  *consultation_fee : DECIMAL(10,2)
+  *treatment_subtotal : DECIMAL(12,2)
+  *discount_amount : DECIMAL(10,2)
+  *discount_label : VARCHAR(40)
+  *total_payable : DECIMAL(12,2)
+  *payment_status : ENUM
+}
+
+entity "**bill_line**" as line {
+  *bill_id : BIGINT <<PK, FK>>
+  *line_no : SMALLINT <<PK>>
+  --
+  *description : VARCHAR(120)
+  *unit_price : DECIMAL(10,2)
+  *quantity : SMALLINT
+  line_total : DECIMAL(12,2) <<generated>>
+}
+
+entity "**audit_entry**" as audit {
+  *entry_id : BIGINT <<PK, AI>>
+  --
+  *performed_by : VARCHAR(40)
+  *action : VARCHAR(40)
+  *entity_ref : VARCHAR(40)
+  detail : VARCHAR(200)
+  *performed_on : DATETIME
+}
+
+entity "**number_sequence**" as seq {
+  *seq_name : VARCHAR(20) <<PK>>
+  *seq_year : SMALLINT <<PK>>
+  --
+  *last_value : INT
+}
+
+entity "**clinic_setting**" as setting {
+  *setting_key : VARCHAR(40) <<PK>>
+  --
+  *setting_value : VARCHAR(40)
+  *description : VARCHAR(150)
+}
+
+' ---------------------------------------------------------------------
+'  Relationships.  The DELETE rule encodes the UML relationship type:
+'    CASCADE  = composition  (the part cannot outlive the whole)
+'    RESTRICT = association  (independent objects)
+' ---------------------------------------------------------------------
+
+staff   ||--o| recep   : "CASCADE"
+staff   ||--o| dentist : "CASCADE"
+staff   ||--o{ appt    : "created_by\nRESTRICT"
+patient ||--o{ appt    : "RESTRICT"
+dentist ||--o{ appt    : "RESTRICT"
+
+appt    ||--|{ at      : "CASCADE"
+treat   ||--o{ at      : "RESTRICT"
+
+appt    ||--o| bill    : "RESTRICT\n(0..1 - only when COMPLETED)"
+bill    ||--|{ line    : "**CASCADE - composition**"
+
+legend right
+  |= Crow's foot |= Meaning |
+  | double bar | exactly one |
+  | circle + bar | zero or one |
+  | circle + fork | zero or more |
+  | bar + fork | one or more |
+  | asterisk on a column | NOT NULL |
+  | CASCADE / RESTRICT | the ON DELETE rule, which is how the UML\n relationship type is expressed in DDL |
+  |= Programmable objects |= Purpose |
+  | trg_appointment_number | generates APT-YYYY-NNNNNN |
+  | trg_patient_number | generates PAT-YYYY-NNNNNN |
+  | **trg_appointment_no_overlap** | rejects clashing INSERTs (ASM-08) |
+  | trg_appointment_overlap_upd | rejects clashing reschedules |
+  | **fn_treatment_subtotal** | sums treatment charges for one visit |
+  | **sp_generate_bill** | writes bill + lines in one transaction |
+  | 5 views | back the management reports (FR-23) |
+endlegend
+
+@enduml
