@@ -4,7 +4,7 @@
 '  Sunrise Dental Clinic Appointment & Patient Management System
 '  Task B - Design / Architecture Class Diagram
 '           Shows the three physical tiers and the design patterns
-'           applied in each.          Author: Thanujaya Hasaranga
+'           applied in each.          Author: <your name / student ID>
 ' =====================================================================
 
 skinparam backgroundColor #FFFFFF
@@ -32,9 +32,60 @@ skinparam package {
 }
 
 ' =====================================================================
-'  TIER 1 - PRESENTATION   (Java Swing client, separate process)
+'  TIER 1 - PRESENTATION
+'
+'  TWO independent clients over one API. Neither holds a business rule, so
+'  a second client could be added without duplicating any logic - which is
+'  the practical proof that the tiers are genuinely separated.
 ' =====================================================================
-package "TIER 1 - presentation.client  [Swing desktop]" as T1 {
+
+package "TIER 1a - browser client  [HTML / CSS / JS]" as T1A {
+
+  class "index.html" as HTML <<view>> {
+    Login, Book, Search, Billing,
+    Reports and Help sections
+    ..
+    Sections are shown and hidden by
+    showPanel(); no page reloads.
+  }
+
+  class "app.css" as CSS <<style>> {
+    Design tokens, responsive grid
+    @media print - strips navigation
+    so only the receipt is printed
+  }
+
+  class Session <<Singleton>> {
+    + save(dto) : void
+    + token() : String
+    + role() : String
+    + isLive() : boolean
+    + can(...roles) : boolean
+    ..
+    Token held in sessionStorage, not a
+    cookie: attached deliberately, so
+    CSRF does not apply. Cleared when
+    the tab closes.
+  }
+
+  class "request()" as FETCH <<Proxy>> {
+    + request(method, path, body) : JSON
+    - attaches Authorization header
+    - maps 401 to sign-in, 409 to slots
+  }
+
+  class api <<facade>> {
+    + login() + book() + appointment()
+    + generateBill() + report() ...
+  }
+
+  class ApiError {
+    + status : int
+    + suggestedSlots : String[]
+  }
+}
+
+package "TIER 1b - desktop client  [Java Swing]" as T1B {
 
   class MainMenuFrame <<boundary>> {
     - session : Session
@@ -47,12 +98,22 @@ package "TIER 1 - presentation.client  [Swing desktop]" as T1 {
   class ReportFrame <<boundary>>
   class HelpFrame <<boundary>>
 
-  class AppointmentServiceProxy <<Proxy>> {
+  class RestClient {
     - baseUrl : String
     - httpClient : HttpClient
+    + get(path : String, type : Class<T>) : T
+    + post(path : String, body : Object, type : Class<T>) : T
+    - attachBearerToken(req : HttpRequest.Builder) : void
+  }
+
+  class AuthServiceProxy <<Proxy>> {
+    + login(username : String, password : String) : SessionDTO
+    + logout() : void
+  }
+  class ClinicServiceProxy <<Proxy>> {
     + book(dto : BookingRequestDTO) : AppointmentDTO
     + findByNumber(no : String) : AppointmentDTO
-    + cancel(no : String, reason : String) : void
+    + generateBill(appointmentNo : String) : BillDTO
   }
 
   class SessionHolder <<Singleton>> {
@@ -145,10 +206,14 @@ package "TIER 3 - MySQL  [data]" as T3 {
     time range overlaps an existing
     BOOKED appointment for the same dentist.
   }
+  class "«function» fn_treatment_subtotal" as FN {
+    Returns the summed price of every
+    treatment on an appointment.
+  }
   class "«procedure» sp_generate_bill" as SP {
-    Sums treatment prices, adds the
-    dentist consultation fee, applies
-    the discount, writes bill + lines.
+    In one transaction: adds the dentist
+    consultation fee, subtracts the supplied
+    discount, writes bill + bill lines.
   }
 }
 
@@ -156,15 +221,32 @@ package "TIER 3 - MySQL  [data]" as T3 {
 '  RELATIONSHIPS
 ' ---------------------------------------------------------------------
 
-LoginFrame              ..> AppointmentServiceProxy
-MainMenuFrame           ..> AppointmentServiceProxy
-BookAppointmentFrame    ..> AppointmentServiceProxy
-SearchAppointmentFrame  ..> AppointmentServiceProxy
-BillingFrame            ..> AppointmentServiceProxy
-ReportFrame             ..> AppointmentServiceProxy
-MainMenuFrame           ..> SessionHolder
+' ---- TIER 1a browser ------------------------------------------------
+HTML  ..> CSS   : styled by >
+HTML  ..> api   : calls >
+api   --|> FETCH
+FETCH ..> Session   : reads token >
+FETCH ..> ApiError  : throws >
 
-AppointmentServiceProxy ..> AppointmentController : <<HTTP / JSON>>
+' ---- TIER 1b desktop -------------------------------------------------
+LoginFrame              ..> AuthServiceProxy
+MainMenuFrame           ..> SessionHolder
+BookAppointmentFrame    ..> ClinicServiceProxy
+SearchAppointmentFrame  ..> ClinicServiceProxy
+BillingFrame            ..> ClinicServiceProxy
+ReportFrame             ..> ClinicServiceProxy
+HelpFrame               ..> MainMenuFrame
+
+AuthServiceProxy        --|> RestClient
+ClinicServiceProxy      --|> RestClient
+RestClient              ..> SessionHolder : reads token >
+
+' ---- THE BOUNDARY: both clients cross HTTP to reach tier 2 -----------
+FETCH              ..> AuthController        : <<HTTP / JSON>>
+FETCH              ..> AppointmentController : <<HTTP / JSON>>
+AuthServiceProxy   ..> AuthController        : <<HTTP / JSON>>
+ClinicServiceProxy ..> AppointmentController : <<HTTP / JSON>>
+ClinicServiceProxy ..> BillingController     : <<HTTP / JSON>>
 
 AuthController        ..> AuthenticationService
 AppointmentController ..> AppointmentService
@@ -191,15 +273,17 @@ AbstractReport <|-- DentistUtilisationReport
 AppointmentRepository ..> TBL_APP : <<JDBC>>
 PatientRepository     ..> TBL_PAT : <<JDBC>>
 BillRepository        ..> TBL_BILL : <<JDBC>>
+BillRepository        ..> FN       : calls >
 BillRepository        ..> SP       : calls >
 TBL_APP               ..> TRG      : enforced by >
 
 legend right
   |= Tier |= Process |= Patterns applied |
-  | 1 Presentation | Swing client JAR | Proxy, Singleton, MVC |
-  | 2 Business | Spring Boot, port 8080 | Facade, Strategy, Observer, Factory Method,\n Template Method, Adapter/DTO, Repository,\n DAO, Builder, dependency injection |
-  | 3 Data | MySQL, port 3306 | Trigger and stored procedure enforcing\n business rules at the data tier |
-  | | | The HTTP hop between tier 1 and tier 2 is what\n makes this a **distributed** application rather\n than a layered monolith. |
+  | 1a Browser | Chrome, served from :8080 | Singleton (Session), Proxy (request),\n Facade (api), Null-safe rendering |
+  | 1b Desktop | Swing client JAR | Proxy, Singleton, MVC |
+  | 2 Business | Spring Boot, port 8080 | Facade, Strategy, Observer, Factory Method,\n Template Method, Adapter/DTO, Repository,\n DAO, dependency injection |
+  | 3 Data | MySQL, port 3306 | Trigger, stored function and stored procedure\n enforcing business rules at the data tier |
+  | | | **Two independent clients share one API.** Neither\n holds a business rule - if any had leaked into a\n client, the second could not exist without\n duplicating it. The HTTP hop is what makes this a\n **distributed** system rather than a layered one. |
 endlegend
 
 @enduml
