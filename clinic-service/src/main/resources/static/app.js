@@ -173,20 +173,34 @@ async function busy(button, work) {
    Navigation - FR-05, the tabs a role may use
    ===================================================================== */
 const TABS = [
-  { id: 'book',    label: 'Book',     roles: ['RECEPTIONIST', 'ADMINISTRATOR'] },
-  { id: 'search',  label: 'Search',   roles: ['RECEPTIONIST', 'DENTIST', 'ADMINISTRATOR'] },
-  { id: 'billing', label: 'Billing',  roles: ['RECEPTIONIST', 'ADMINISTRATOR'] },
-  { id: 'reports', label: 'Reports',  roles: ['ADMINISTRATOR'] },
-  { id: 'help',    label: 'Help',     roles: ['RECEPTIONIST', 'DENTIST', 'ADMINISTRATOR'] }
+  { id: 'book',    label: 'Book',           icon: 'i-book',    roles: ['RECEPTIONIST', 'ADMINISTRATOR'] },
+  { id: 'search',  label: 'Appointments',   icon: 'i-search',  roles: ['RECEPTIONIST', 'DENTIST', 'ADMINISTRATOR'] },
+  { id: 'billing', label: 'Billing',        icon: 'i-billing', roles: ['RECEPTIONIST', 'ADMINISTRATOR'] },
+  { id: 'reports', label: 'Reports',        icon: 'i-reports', roles: ['ADMINISTRATOR'] },
+  { id: 'help',    label: 'Help',           icon: 'i-help',    roles: ['RECEPTIONIST', 'DENTIST', 'ADMINISTRATOR'] }
 ];
 
+/** Builds an <svg><use href="#id"/></svg> without touching innerHTML. */
+function icon(id) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('class', 'ico');
+  svg.setAttribute('aria-hidden', 'true');
+  const use = document.createElementNS(NS, 'use');
+  use.setAttribute('href', '#' + id);
+  svg.appendChild(use);
+  return svg;
+}
+
 function buildTabs() {
-  const nav = $('#tabs');
+  const nav = $('#nav');
   nav.replaceChildren();
   TABS.filter(t => Session.can(...t.roles)).forEach(t => {
-    const b = el('button', 'tab', t.label);
+    const b = el('button', 'nav-item');
     b.type = 'button';
     b.dataset.panel = t.id;
+    b.appendChild(icon(t.icon));
+    b.appendChild(el('span', null, t.label));
     b.addEventListener('click', () => showPanel(t.id));
     nav.appendChild(b);
   });
@@ -197,7 +211,8 @@ function showPanel(id) {
     const panel = $(`#panel-${t.id}`);
     if (panel) panel.hidden = t.id !== id;
   });
-  $$('.tab').forEach(b => b.classList.toggle('active', b.dataset.panel === id));
+  $$('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.panel === id));
+  if (id === 'reports' && !$('#report-list').children.length) loadReports();
 }
 
 /* =====================================================================
@@ -217,6 +232,7 @@ async function enterApp() {
   $('#app-view').hidden = false;
   $('#who-name').textContent = s.fullName;
   $('#who-role').textContent = s.role.charAt(0) + s.role.slice(1).toLowerCase();
+  $('#who-initials').textContent = s.fullName.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 
   buildTabs();
   showPanel(TABS.find(t => Session.can(...t.roles)).id);
@@ -264,9 +280,9 @@ function startSessionClock() {
     const s = Session.load();
     if (!s) return;
     const left = Math.max(0, Math.floor((new Date(s.expiresAt) - new Date()) / 1000));
-    const pill = $('#session-pill');
-    pill.textContent = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
-    pill.classList.toggle('expiring', left < 300);
+    $('#session-pill').textContent =
+      `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
+    $('#session-box').classList.toggle('expiring', left < 300);
     if (left === 0) {
       Session.clear();
       showLogin('Your session expired after 20 minutes of inactivity.');
@@ -485,8 +501,16 @@ async function loadDay() {
       tr.appendChild(td);
       tbody.appendChild(tr);
       $('#appt-detail').hidden = true;
+      $('#day-stats').hidden = true;
       return;
     }
+
+    const count = (st) => rows.filter(a => a.status === st).length;
+    $('#stat-total').textContent  = rows.length;
+    $('#stat-booked').textContent = count('BOOKED');
+    $('#stat-done').textContent   = count('COMPLETED');
+    $('#stat-miss').textContent   = count('CANCELLED') + count('NO_SHOW');
+    $('#day-stats').hidden = false;
 
     rows.forEach(a => {
       const tr = el('tr');
@@ -691,20 +715,27 @@ async function runReport(id) {
     }
 
     const columns = Object.keys(rows[0]);
+    // A column is numeric if its first value is - so the header aligns with
+    // the cells beneath it.
+    const numeric = {};
+    columns.forEach(c => { numeric[c] = typeof rows[0][c] === 'number'; });
+
     const headRow = el('tr');
     columns.forEach(c => {
       const label = c.replace(/_/g, ' ');
-      headRow.appendChild(el('th', null, label.charAt(0).toUpperCase() + label.slice(1)));
+      headRow.appendChild(el('th', numeric[c] ? 'num' : null,
+        label.charAt(0).toUpperCase() + label.slice(1)));
     });
     thead.appendChild(headRow);
 
     rows.forEach(r => {
-      const tr = el('tr', 'empty');   // not clickable
+      const tr = el('tr', 'static-row');   // data row, not selectable
       columns.forEach(c => {
         const v = r[c];
-        const numeric = typeof v === 'number';
-        tr.appendChild(el('td', numeric ? 'num' : null,
-          numeric ? v.toLocaleString('en-LK') : text(v)));
+        tr.appendChild(el('td', numeric[c] ? 'num' : null,
+          typeof v === 'number'
+            ? v.toLocaleString('en-LK', { maximumFractionDigits: 2 })
+            : text(v)));
       });
       tbody.appendChild(tr);
     });
@@ -714,13 +745,6 @@ async function runReport(id) {
 /* =====================================================================
    Start-up
    ===================================================================== */
-document.addEventListener('click', (e) => {
-  // Load the report catalogue the first time the tab is opened.
-  if (e.target.dataset && e.target.dataset.panel === 'reports' && !$('#report-list').children.length) {
-    loadReports();
-  }
-});
-
 if (Session.isLive()) {
   enterApp().catch(handle);
 } else {
