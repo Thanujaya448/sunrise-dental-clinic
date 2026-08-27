@@ -6,60 +6,63 @@
 <title>Sunrise Dental Clinic</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
 
-<!-- Icon sprite. Static, author-written markup - no user data ever reaches it. -->
+<!-- Icon sprite: static author-written markup, never touched by user data. -->
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
-  <symbol id="i-book" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M12 13v4M10 15h4"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M12 13.5v3.5M10.25 15.25h3.5"/></symbol>
   <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></symbol>
-  <symbol id="i-billing" viewBox="0 0 24 24"><path d="M6 2.5h12v19l-3-2-3 2-3-2-3 2z"/><path d="M9.5 8h5M9.5 12h5M9.5 16h3"/></symbol>
-  <symbol id="i-reports" viewBox="0 0 24 24"><path d="M3 21h18"/><rect x="5" y="11" width="3.6" height="7" rx="1"/><rect x="10.2" y="6" width="3.6" height="12" rx="1"/><rect x="15.4" y="14" width="3.6" height="4" rx="1"/></symbol>
-  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .9-1 1.6v.4"/><circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-billing" viewBox="0 0 24 24"><path d="M6 2.5h12v19l-3-2-3 2-3-2-3 2z"/><path d="M9.5 8.5h5M9.5 12.5h5M9.5 16.5h3"/></symbol>
+  <symbol id="i-reports" viewBox="0 0 24 24"><path d="M3.5 20.5h17"/><rect x="5" y="11" width="3.6" height="6.5" rx="1.4"/><rect x="10.2" y="6" width="3.6" height="11.5" rx="1.4"/><rect x="15.4" y="13.5" width="3.6" height="4" rx="1.4"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .9-1 1.6v.4"/><circle cx="12" cy="17" r=".95" fill="currentColor" stroke="none"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.2l3.2 2"/></symbol>
   <symbol id="i-out" viewBox="0 0 24 24"><path d="M14 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h8"/><path d="M17 15l3-3-3-3M20 12H10"/></symbol>
+  <symbol id="i-tooth" viewBox="0 0 24 24"><path d="M12 3.2c-2 0-2.6.9-4.3.9-1.6 0-3 1.2-3 3.5 0 2.6 1 4 1.5 6.4.4 2 .5 5.2 1 6.3.4.9 1.7 1 2.1 0 .5-1.3.7-3.6 1.2-5 .3-.9 1.7-.9 2 0 .5 1.4.7 3.7 1.2 5 .4 1 1.7.9 2.1 0 .5-1.1.6-4.3 1-6.3.5-2.4 1.5-3.8 1.5-6.4 0-2.3-1.4-3.5-3-3.5-1.7 0-2.3-.9-4.3-.9z"/></symbol>
+  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 20c.3-3.3 3-5.4 6.2-5.4s5.9 2.1 6.2 5.4"/><path d="M16.5 5.2a3.4 3.4 0 0 1 0 6.6M17.6 14.9c2.1.5 3.5 2.3 3.7 5.1"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.4 12.2 2.4 2.4 4.8-4.8"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a8.6 8.6 0 1 0 11.1 11.1z"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4.5 2.8 20h18.4z"/><path d="M12 10v4"/><circle cx="12" cy="17" r=".95" fill="currentColor" stroke="none"/></symbol>
 </svg>
 
-<!-- ================= LOGIN ================= -->
+<!-- ================= SIGN IN ================= -->
 <div id="login-view" class="login-shell">
-  <div class="login-art">
-    <div class="brand-mark xl">SD</div>
-    <h1>Sunrise Dental Clinic</h1>
-    <p>One diary, one patient record, one bill.<br>No more double bookings.</p>
-    <ul class="login-points">
-      <li>Clash-proof scheduling with automatic alternatives</li>
-      <li>Patient records that persist across every visit</li>
-      <li>Bills calculated once, in one place</li>
-    </ul>
+  <div class="login-hero">
+    <div class="hero-inner">
+      <div class="hero-badge"><svg class="ico"><use href="#i-tooth"/></svg> Sunrise Dental Clinic</div>
+      <h1>Every patient,<br>every visit,<br>in one place.</h1>
+      <p>Booking that will not let you double-book. Records that follow the patient. Bills that add up the same way every time.</p>
+      <div class="hero-cards">
+        <div class="hero-card"><span>10&nbsp;min</span><small>gap kept between appointments</small></div>
+        <div class="hero-card"><span>0</span><small>double bookings possible</small></div>
+      </div>
+    </div>
+    <div class="hero-glow" aria-hidden="true"></div>
   </div>
 
-  <form class="login-card" id="login-form" autocomplete="off">
-    <h2>Sign in</h2>
-    <p class="sub">Authorised clinic staff only.</p>
+  <div class="login-pane">
+    <form class="login-card" id="login-form" autocomplete="off">
+      <h2>Welcome back</h2>
+      <p class="sub">Sign in to continue to the clinic diary.</p>
 
-    <div class="field">
-      <label for="username">Username</label>
-      <input id="username" name="username" type="text" required autofocus autocomplete="username">
-    </div>
-    <div class="field">
-      <label for="password">Password</label>
-      <input id="password" name="password" type="password" required autocomplete="current-password">
-    </div>
+      <div class="field">
+        <label for="username">Username</label>
+        <input id="username" name="username" type="text" required autofocus autocomplete="username" placeholder="Your clinic username">
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" required autocomplete="current-password" placeholder="••••••••">
+      </div>
 
-    <p class="form-error" id="login-error" role="alert"></p>
-    <button class="btn btn-primary btn-block" type="submit" id="login-btn">Sign in</button>
+      <p class="form-error" id="login-error" role="alert"></p>
+      <button class="btn btn-primary btn-block btn-lg" type="submit" id="login-btn">Sign in</button>
 
-    <div class="demo">
-      <span>Demo accounts</span>
-      <dl>
-        <dt>Receptionist</dt><dd><code>rmenaka</code> / <code>Recep@123</code></dd>
-        <dt>Dentist</dt><dd><code>dperera</code> / <code>Dentist@123</code></dd>
-        <dt>Administrator</dt><dd><code>admin</code> / <code>Admin@123</code></dd>
-      </dl>
-    </div>
-  </form>
+      <p class="foot-note">Trouble signing in? Ask the clinic Administrator to check your account.</p>
+    </form>
+  </div>
 </div>
 
 <!-- ================= APPLICATION ================= -->
@@ -67,21 +70,29 @@
 
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <div class="brand-mark">SD</div>
+      <div class="brand-mark"><svg class="ico"><use href="#i-tooth"/></svg></div>
       <div>
         <strong>Sunrise Dental</strong>
-        <span>Clinic management</span>
+        <span>Clinic diary</span>
       </div>
     </div>
 
     <nav class="nav" id="nav" aria-label="Main"></nav>
 
     <div class="sidebar-foot">
+      <div class="theme-toggle" id="theme-toggle" role="group" aria-label="Appearance">
+        <button type="button" data-theme-choice="light" aria-pressed="false">
+          <svg class="ico"><use href="#i-sun"/></svg> Light
+        </button>
+        <button type="button" data-theme-choice="dark" aria-pressed="false">
+          <svg class="ico"><use href="#i-moon"/></svg> Dark
+        </button>
+      </div>
       <div class="session" id="session-box">
         <svg class="ico"><use href="#i-clock"/></svg>
         <div>
           <strong id="session-pill">--:--</strong>
-          <span>until sign-out</span>
+          <span>left in this session</span>
         </div>
       </div>
       <div class="user">
@@ -91,7 +102,7 @@
           <span id="who-role"></span>
         </div>
       </div>
-      <button class="btn btn-ghost btn-block" id="logout-btn">
+      <button class="btn btn-quiet btn-block" id="logout-btn">
         <svg class="ico"><use href="#i-out"/></svg> Sign out
       </button>
     </div>
@@ -100,39 +111,46 @@
   <div class="content">
   <main>
 
+    <div class="greeting">
+      <h1 id="greeting">Hello</h1>
+      <p id="greeting-sub"></p>
+    </div>
+
     <!-- ---------- BOOK ---------- -->
     <section class="panel" id="panel-book" hidden>
-      <header class="page-head">
-        <div>
-          <h2>Book an appointment</h2>
-          <p>Find the patient, then choose a dentist, treatment and time.</p>
-        </div>
-      </header>
-
       <div class="split">
         <div class="card">
-          <div class="card-head"><span class="step">1</span><h3>Patient</h3></div>
+          <div class="card-head">
+            <span class="step">1</span>
+            <div><h3>Find the patient</h3><small>Search by name, phone or patient number</small></div>
+          </div>
           <div class="card-body">
             <div class="row">
-              <input id="patient-search" type="search" placeholder="Name, phone or patient number">
+              <input id="patient-search" type="search" placeholder="Try “Kamal” or 0712345678">
               <button class="btn" id="patient-search-btn">Search</button>
-              <button class="btn" id="patient-new-btn">New patient</button>
+              <button class="btn btn-soft" id="patient-new-btn">+ New patient</button>
             </div>
             <div class="table-wrap">
               <table id="patient-table">
                 <thead><tr><th>Patient no</th><th>Name</th><th>Contact</th><th class="num">Visits</th></tr></thead>
-                <tbody><tr class="empty"><td colspan="4">Search for a patient to begin.</td></tr></tbody>
+                <tbody><tr class="empty"><td colspan="4">
+                  <svg class="ico empty-ico"><use href="#i-people"/></svg>
+                  <span>Search above to find a patient.</span>
+                </td></tr></tbody>
               </table>
             </div>
           </div>
         </div>
 
         <div class="card">
-          <div class="card-head"><span class="step">2</span><h3>Appointment</h3></div>
+          <div class="card-head">
+            <span class="step">2</span>
+            <div><h3>Choose a slot</h3><small>The treatment decides how long it takes</small></div>
+          </div>
           <div class="card-body">
             <div class="field">
-              <label>Selected patient</label>
-              <div class="selected" id="selected-patient">None selected</div>
+              <label>Patient</label>
+              <div class="selected" id="selected-patient">No one selected yet</div>
             </div>
             <div class="field">
               <label for="book-dentist">Dentist</label>
@@ -154,44 +172,40 @@
               </div>
             </div>
             <div class="field">
-              <label for="book-notes">Notes (optional)</label>
-              <input id="book-notes" type="text" maxlength="300">
+              <label for="book-notes">Notes <span class="opt">optional</span></label>
+              <input id="book-notes" type="text" maxlength="300" placeholder="Anything the dentist should know">
             </div>
-            <button class="btn btn-primary btn-block" id="book-btn">Book appointment</button>
+            <button class="btn btn-primary btn-block btn-lg" id="book-btn">Book this appointment</button>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ---------- SEARCH ---------- -->
+    <!-- ---------- APPOINTMENTS ---------- -->
     <section class="panel" id="panel-search" hidden>
-      <header class="page-head">
-        <div>
-          <h2>Appointments</h2>
-          <p>Look up one appointment by number, or browse a whole day.</p>
-        </div>
-      </header>
-
       <div class="stats" id="day-stats" hidden>
-        <div class="stat"><span class="stat-n" id="stat-total">0</span><span class="stat-l">Total</span></div>
-        <div class="stat"><span class="stat-n" id="stat-booked">0</span><span class="stat-l">Booked</span></div>
-        <div class="stat"><span class="stat-n" id="stat-done">0</span><span class="stat-l">Completed</span></div>
-        <div class="stat"><span class="stat-n" id="stat-miss">0</span><span class="stat-l">Cancelled / no-show</span></div>
+        <div class="stat s-total"><div class="stat-ico"><svg class="ico"><use href="#i-book"/></svg></div><div><span class="stat-n" id="stat-total">0</span><span class="stat-l">Appointments</span></div></div>
+        <div class="stat s-booked"><div class="stat-ico"><svg class="ico"><use href="#i-clock"/></svg></div><div><span class="stat-n" id="stat-booked">0</span><span class="stat-l">Still to come</span></div></div>
+        <div class="stat s-done"><div class="stat-ico"><svg class="ico"><use href="#i-check"/></svg></div><div><span class="stat-n" id="stat-done">0</span><span class="stat-l">Completed</span></div></div>
+        <div class="stat s-miss"><div class="stat-ico"><svg class="ico"><use href="#i-alert"/></svg></div><div><span class="stat-n" id="stat-miss">0</span><span class="stat-l">Cancelled or missed</span></div></div>
       </div>
 
       <div class="card">
         <div class="card-body">
           <div class="row">
-            <input id="appt-no" type="text" placeholder="APT-2026-000005">
+            <input id="appt-no" type="text" placeholder="Appointment number, e.g. APT-2026-000005">
             <button class="btn" id="appt-find-btn">Find</button>
             <span class="divider"></span>
             <input id="appt-day" type="date">
-            <button class="btn" id="appt-day-btn">Show day</button>
+            <button class="btn btn-soft" id="appt-day-btn">Show this day</button>
           </div>
           <div class="table-wrap">
             <table id="appt-table">
               <thead><tr><th>Appointment no</th><th>Time</th><th>Patient</th><th>Dentist</th><th>Status</th></tr></thead>
-              <tbody><tr class="empty"><td colspan="5">Choose a day, or search by number.</td></tr></tbody>
+              <tbody><tr class="empty"><td colspan="5">
+                <svg class="ico empty-ico"><use href="#i-book"/></svg>
+                <span>Pick a day, or search by appointment number.</span>
+              </td></tr></tbody>
             </table>
           </div>
         </div>
@@ -202,40 +216,27 @@
 
     <!-- ---------- BILLING ---------- -->
     <section class="panel" id="panel-billing" hidden>
-      <header class="page-head">
-        <div>
-          <h2>Billing &amp; receipts</h2>
-          <p>A bill can be produced once an appointment has been completed.</p>
-        </div>
-      </header>
-
       <div class="card">
         <div class="card-body">
           <div class="row">
             <input id="bill-appt-no" type="text" placeholder="Appointment number">
             <button class="btn btn-primary" id="bill-generate-btn">Generate bill</button>
             <span class="divider"></span>
-            <input id="bill-no" type="text" placeholder="Existing bill number">
-            <button class="btn" id="bill-find-btn">Find bill</button>
+            <input id="bill-no" type="text" placeholder="Or an existing bill number">
+            <button class="btn btn-soft" id="bill-find-btn">Find bill</button>
           </div>
+          <p class="hint-line">A bill can only be produced once the visit has been marked completed.</p>
         </div>
       </div>
 
       <div id="receipt-area" hidden>
         <div class="paper"><pre class="receipt" id="receipt"></pre></div>
-        <div class="row end"><button class="btn btn-primary" id="print-btn">Print receipt</button></div>
+        <div class="row end"><button class="btn btn-primary btn-lg" id="print-btn">Print receipt</button></div>
       </div>
     </section>
 
     <!-- ---------- REPORTS ---------- -->
     <section class="panel" id="panel-reports" hidden>
-      <header class="page-head">
-        <div>
-          <h2>Management reports</h2>
-          <p>Each report answers one question the clinic manager has to act on.</p>
-        </div>
-      </header>
-
       <div class="report-layout">
         <ul class="report-list" id="report-list"></ul>
         <div class="card">
@@ -251,29 +252,22 @@
 
     <!-- ---------- HELP ---------- -->
     <section class="panel" id="panel-help" hidden>
-      <header class="page-head">
-        <div>
-          <h2>Help</h2>
-          <p>Step-by-step instructions for clinic staff.</p>
-        </div>
-      </header>
-
       <div class="card"><div class="card-body help">
         <h3>Booking an appointment</h3>
         <ol>
-          <li>Open <b>Book</b>, then search for the patient by name, phone number or patient number.</li>
-          <li>Click their row to select them. If they are not listed, use <b>New patient</b> &mdash; the system allocates a number such as PAT-2026-000006.</li>
-          <li>Choose the dentist and treatment. The treatment sets how long the appointment lasts, so you never enter an end time.</li>
-          <li>Pick the date and start time, then press <b>Book appointment</b>.</li>
-          <li>Give the patient the appointment number shown in the confirmation.</li>
+          <li>Open <b>Book</b> and search for the patient by name, phone number or patient number.</li>
+          <li>Click their row to choose them. If they are new, use <b>+ New patient</b> &mdash; the system gives them a number such as PAT-2026-000006.</li>
+          <li>Pick the dentist and the treatment. The treatment sets how long the visit takes, so you never type an end time.</li>
+          <li>Choose the date and start time, then press <b>Book this appointment</b>.</li>
+          <li>Give the patient the appointment number from the confirmation.</li>
         </ol>
 
         <h3>If the slot is already taken</h3>
-        <p>Two appointments can never overlap for the same dentist. Rather than simply refusing, the system offers the next free times &mdash; click one to book it instead.</p>
-        <p>A ten-minute gap is always kept between a dentist's appointments, so a time immediately after another appointment may still be refused.</p>
+        <p>Two appointments can never overlap for the same dentist. Instead of just refusing, the system offers the next free times &mdash; click one to book it straight away.</p>
+        <p>A ten-minute gap is always kept between a dentist's appointments, so a time right after another visit may still be refused.</p>
 
         <h3>After the visit</h3>
-        <p>The dentist marks the appointment <b>Completed</b>, or <b>No-show</b> if the patient did not arrive. Only a completed appointment can be billed.</p>
+        <p>The dentist marks the appointment <b>Completed</b>, or <b>No-show</b> if the patient did not arrive. Only a completed visit can be billed.</p>
 
         <h3>Producing a bill</h3>
         <ol>
@@ -281,15 +275,15 @@
           <li>The total is the dentist's consultation fee plus treatments, less any discount the patient qualifies for. Discounts apply to treatments only.</li>
           <li>Press <b>Print receipt</b>.</li>
         </ol>
-        <p>Each appointment can be billed once. Trying again tells you so rather than creating a second bill.</p>
+        <p>Each appointment is billed once. Trying again will tell you so rather than creating a second bill.</p>
 
-        <h3>Sessions</h3>
-        <p>Your session ends automatically after 20 minutes of inactivity; the timer in the sidebar shows when. Always use <b>Sign out</b> when you leave the desk.</p>
+        <h3>Your session</h3>
+        <p>Sessions end after 20 minutes of inactivity &mdash; the sidebar shows how long is left. Please use <b>Sign out</b> when you leave the desk.</p>
 
-        <h3>Common messages</h3>
+        <h3>Messages you might see</h3>
         <ul>
           <li><b>Your session has expired</b> &mdash; sign in again.</li>
-          <li><b>Your role does not permit this action</b> &mdash; the task belongs to another role. A receptionist cannot complete visits; a dentist cannot produce bills.</li>
+          <li><b>Your role does not permit this action</b> &mdash; the task belongs to another role. Receptionists cannot complete visits; dentists cannot produce bills.</li>
           <li>Five failed sign-ins lock the account. Only the Administrator can unlock it.</li>
         </ul>
       </div></div>
@@ -303,14 +297,14 @@
 <dialog id="patient-dialog">
   <form method="dialog" id="patient-form">
     <h3>Register a new patient</h3>
-    <p class="sub">The system will allocate the patient number.</p>
-    <div class="field"><label for="np-name">Full name</label><input id="np-name" required></div>
+    <p class="sub">We will allocate the patient number automatically.</p>
+    <div class="field"><label for="np-name">Full name</label><input id="np-name" required placeholder="e.g. Kamal Jayasuriya"></div>
     <div class="field"><label for="np-address">Address</label><input id="np-address" required></div>
     <div class="field-pair">
       <div class="field"><label for="np-phone">Contact number</label><input id="np-phone" required placeholder="0712345678"></div>
       <div class="field"><label for="np-dob">Date of birth</label><input id="np-dob" type="date" required></div>
     </div>
-    <div class="field"><label for="np-email">Email (optional)</label><input id="np-email" type="email"></div>
+    <div class="field"><label for="np-email">Email <span class="opt">optional</span></label><input id="np-email" type="email"></div>
     <label class="check"><input id="np-staff" type="checkbox"> Clinic staff or immediate family</label>
     <p class="form-error" id="np-error"></p>
     <div class="dialog-actions">
@@ -321,11 +315,12 @@
 </dialog>
 
 <dialog id="slots-dialog">
-  <h3>That slot is taken</h3>
+  <h3>That time is already taken</h3>
   <p class="sub" id="slots-message"></p>
+  <p class="slots-lead">Here is when this dentist is next free:</p>
   <div class="slot-options" id="slot-options"></div>
   <div class="dialog-actions">
-    <button class="btn" id="slots-cancel">Choose another day</button>
+    <button class="btn" id="slots-cancel">Pick another day</button>
   </div>
 </dialog>
 

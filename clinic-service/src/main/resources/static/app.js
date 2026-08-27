@@ -12,6 +12,66 @@
 
 const API = '/api';
 
+
+/* =====================================================================
+   APPEARANCE (light / dark)
+
+   Three states, deliberately: no stored choice means the operating system
+   decides, so a receptionist whose machine is set to dark gets dark
+   without touching anything. An explicit choice is remembered per browser
+   in localStorage and overrides the system in both directions.
+
+   localStorage is used rather than the server because appearance belongs
+   to the device, not the account - the same nurse on the front desk PC and
+   on a laptop may reasonably want different settings.
+   ===================================================================== */
+const Theme = {
+  KEY: 'clinic.theme',
+
+  stored() {
+    try { return localStorage.getItem(Theme.KEY); } catch { return null; }
+  },
+
+  apply(choice) {
+    if (choice === 'light' || choice === 'dark') {
+      document.documentElement.setAttribute('data-theme', choice);
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    Theme.paintToggle(choice);
+  },
+
+  /** Marks the button that matches the current setting. */
+  paintToggle(choice) {
+    const active = choice || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.querySelectorAll('[data-theme-choice]').forEach(b => {
+      b.setAttribute('aria-pressed', String(b.dataset.themeChoice === active));
+    });
+  },
+
+  set(choice) {
+    try {
+      if (choice) localStorage.setItem(Theme.KEY, choice);
+      else localStorage.removeItem(Theme.KEY);
+    } catch { /* private browsing - the choice simply is not remembered */ }
+    Theme.apply(choice);
+  },
+
+  init() {
+    Theme.apply(Theme.stored());
+    document.querySelectorAll('[data-theme-choice]').forEach(b => {
+      b.addEventListener('click', () => {
+        // Clicking the already-active side hands control back to the OS.
+        const wanted = b.dataset.themeChoice;
+        Theme.set(Theme.stored() === wanted ? null : wanted);
+      });
+    });
+    // Follow the OS while no explicit choice is stored.
+    window.matchMedia('(prefers-color-scheme: dark)')
+      .addEventListener('change', () => { if (!Theme.stored()) Theme.paintToggle(null); });
+  }
+};
+
 /* =====================================================================
    SESSION (FR-04)
 
@@ -212,6 +272,8 @@ function showPanel(id) {
     if (panel) panel.hidden = t.id !== id;
   });
   $$('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.panel === id));
+  const sub = $('#greeting-sub');
+  if (sub) sub.textContent = PANEL_SUB[id] || '';
   if (id === 'reports' && !$('#report-list').children.length) loadReports();
 }
 
@@ -226,10 +288,28 @@ function showLogin(message) {
   stopSessionClock();
 }
 
+const PANEL_SUB = {
+  book:    'Find the patient, pick a slot, and we will keep the diary clash-free.',
+  search:  'Look up one appointment, or see how a whole day is shaping up.',
+  billing: 'Produce and print a bill for a visit that has been completed.',
+  reports: 'Four questions worth asking about how the clinic is running.',
+  help:    'Everything the front desk needs, in plain language.'
+};
+
+function timeOfDay() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
 async function enterApp() {
   const s = Session.load();
   $('#login-view').hidden = true;
   $('#app-view').hidden = false;
+
+  const firstName = s.fullName.replace(/^(Dr\.?|Mr\.?|Ms\.?|Mrs\.?)\s+/i, '').split(/\s+/)[0];
+  $('#greeting').textContent = `${timeOfDay()}, ${firstName}`;
   $('#who-name').textContent = s.fullName;
   $('#who-role').textContent = s.role.charAt(0) + s.role.slice(1).toLowerCase();
   $('#who-initials').textContent = s.fullName.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
@@ -340,8 +420,12 @@ async function searchPatients() {
 
     if (!rows.length) {
       const tr = el('tr', 'empty');
-      tr.appendChild(el('td', null, `No patient matched "${term}". Use New patient to register them.`))
-        .colSpan = 4;
+      const td = el('td');
+      td.colSpan = 4;
+      td.appendChild(icon('i-people')).classList.add('empty-ico');
+      td.appendChild(el('span', null,
+        `No one matched "${term}". If they are new, use + New patient.`));
+      tr.appendChild(td);
       tbody.appendChild(tr);
       return;
     }
@@ -404,7 +488,7 @@ $('#patient-dialog').addEventListener('close', async () => {
 
   try {
     const created = await api.addPatient(p);
-    toast(`Patient registered as ${created.patientNo}.`);
+    toast(`${created.fullName} is registered as ${created.patientNo}.`);
     $('#patient-search').value = created.patientNo;
     await searchPatients();
   } catch (err) { handle(err); }
@@ -439,8 +523,8 @@ async function attemptBooking(startTime) {
 
   try {
     const saved = await busy($('#book-btn'), () => api.book(payload));
-    toast(`Booked — ${saved.appointmentNo}, ${saved.dentistName}, `
-        + `${saved.appointmentDate} ${saved.startTime}–${saved.endTime}`);
+    toast(`All set — ${saved.appointmentNo} with ${saved.dentistName}, `
+        + `${saved.appointmentDate} at ${saved.startTime.slice(0, 5)}.`);
     $('#book-notes').value = '';
   } catch (err) {
     if (err.status === 409 && err.suggestedSlots.length) {
@@ -496,8 +580,10 @@ async function loadDay() {
 
     if (!rows.length) {
       const tr = el('tr', 'empty');
-      const td = el('td', null, `No appointments on ${day}.`);
+      const td = el('td');
       td.colSpan = 5;
+      td.appendChild(icon('i-book')).classList.add('empty-ico');
+      td.appendChild(el('span', null, `Nothing booked on ${day} — a clear day.`));
       tr.appendChild(td);
       tbody.appendChild(tr);
       $('#appt-detail').hidden = true;
@@ -620,7 +706,7 @@ async function generateBill() {
   try {
     const bill = await busy($('#bill-generate-btn'), () => api.generateBill(no));
     renderReceipt(bill);
-    toast(`Bill ${bill.billNo} created.`);
+    toast(`Bill ${bill.billNo} is ready to print.`);
   } catch (err) { handle(err); }
 }
 
@@ -708,7 +794,7 @@ async function runReport(id) {
 
     if (!rows.length) {
       const tr = el('tr', 'empty');
-      const td = el('td', null, 'No data yet. Complete some appointments or generate bills, then run it again.');
+      const td = el('td', null, 'Nothing to show yet — complete a few visits or produce a bill, then run this again.');
       tr.appendChild(td);
       tbody.appendChild(tr);
       return;
@@ -745,6 +831,8 @@ async function runReport(id) {
 /* =====================================================================
    Start-up
    ===================================================================== */
+Theme.init();
+
 if (Session.isLive()) {
   enterApp().catch(handle);
 } else {
