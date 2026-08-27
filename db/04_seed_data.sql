@@ -11,7 +11,7 @@
 --
 --  These are development credentials only and are documented here so the
 --  system can be demonstrated. The plaintext is never stored (FR-02).
---  Author: <your name / student ID>
+--  Author: Thanujaya Hasaranga
 -- =====================================================================
 
 USE sunrise_clinic;

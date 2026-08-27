@@ -36,11 +36,11 @@ BEGIN
     IF NEW.patient_no IS NULL THEN
         SET v_year = YEAR(CURDATE());
 
-        INSERT INTO number_sequence (seq_name, seq_year, last_value)
+        INSERT INTO number_sequence (seq_name, seq_year, last_issued)
              VALUES ('PATIENT', v_year, 1)
-        ON DUPLICATE KEY UPDATE last_value = last_value + 1;
+        ON DUPLICATE KEY UPDATE last_issued = last_issued + 1;
 
-        SELECT last_value INTO v_next
+        SELECT last_issued INTO v_next
           FROM number_sequence
          WHERE seq_name = 'PATIENT' AND seq_year = v_year;
 
@@ -63,11 +63,11 @@ BEGIN
     IF NEW.appointment_no IS NULL THEN
         SET v_year = YEAR(NEW.appointment_date);
 
-        INSERT INTO number_sequence (seq_name, seq_year, last_value)
+        INSERT INTO number_sequence (seq_name, seq_year, last_issued)
              VALUES ('APPOINTMENT', v_year, 1)
-        ON DUPLICATE KEY UPDATE last_value = last_value + 1;
+        ON DUPLICATE KEY UPDATE last_issued = last_issued + 1;
 
-        SELECT last_value INTO v_next
+        SELECT last_issued INTO v_next
           FROM number_sequence
          WHERE seq_name = 'APPOINTMENT' AND seq_year = v_year;
 

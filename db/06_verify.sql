@@ -9,7 +9,7 @@
 --  Screenshot the output of this script for the Testing section - it is
 --  direct evidence that the trigger and the stored procedure enforce
 --  business rules, which is the line the 70-100 band asks for.
---  Author: <your name / student ID>
+--  Author: Thanujaya Hasaranga
 -- =====================================================================
 
 USE sunrise_clinic;

@@ -36,7 +36,7 @@ CREATE TABLE clinic_setting (
 CREATE TABLE number_sequence (
     seq_name    VARCHAR(20) NOT NULL,
     seq_year    SMALLINT    NOT NULL,
-    last_value  INT         NOT NULL DEFAULT 0,
+    last_issued  INT         NOT NULL DEFAULT 0,
     CONSTRAINT pk_number_sequence PRIMARY KEY (seq_name, seq_year)
 ) ENGINE=InnoDB;
 
