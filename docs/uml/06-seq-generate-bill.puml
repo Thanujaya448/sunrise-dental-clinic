@@ -1,0 +1,144 @@
+@startuml Seq-03-Generate-Bill
+' =====================================================================
+'  CIS6003 Advanced Programming - WRIT1
+'  Task A - Sequence Diagram 3 of 3 : UC-15 Generate Bill
+'  Covers FR-13, FR-17, FR-18, FR-19, extend UC-17 and UC-18
+'  Shows: the Facade hiding billing complexity, the Strategy pattern
+'         selecting a discount rule, and a stored function plus a
+'         stored procedure implementing business rules in tier 3.
+'  Author: Thanujaya Hasaranga
+' =====================================================================
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam DefaultFontName "Segoe UI"
+skinparam ArrowColor #0E2B2E
+skinparam sequenceMessageAlign first
+skinparam maxMessageSize 230
+
+skinparam sequence {
+  ParticipantBorderColor #0E2B2E
+  ParticipantBackgroundColor #E9F0EE
+  ActorBorderColor #0E2B2E
+  ActorBackgroundColor #E9F0EE
+  LifeLineBorderColor #B4C8C4
+  LifeLineBackgroundColor #F5F8F7
+  BoxBorderColor #0C7B72
+  BoxFontColor #0C7B72
+  GroupBorderColor #0C7B72
+  GroupHeaderFontColor #0C7B72
+}
+
+actor "Receptionist" as User
+
+box "TIER 1 - Swing client" #FCFEFD
+  participant "BillingFrame\n<<boundary>>" as UI
+  participant "BillingServiceProxy\n<<Proxy>>" as Proxy
+end box
+
+box "TIER 2 - Spring Boot REST service" #FCFEFD
+  participant "BillingController\n<<control>>" as Ctrl
+  participant "BillingFacade\n<<Facade>>" as Facade
+  participant "DiscountStrategy\n<<Strategy>>" as Strat
+  participant "BillRepository\n<<Repository>>" as Repo
+end box
+
+database "MySQL\n+ fn_treatment_subtotal\n+ sp_generate_bill" as DB
+
+autonumber "<b>[00]"
+
+User -> UI ++ : enter appointment number\nAPT-2026-000147
+UI -> Proxy ++ : generateBill("APT-2026-000147")
+Proxy -> Ctrl ++ : **POST /api/bills**\n{ "appointmentNo": "APT-2026-000147" }
+note over Proxy, Ctrl #E0F0ED
+  HTTP boundary - tier 1 to tier 2
+end note
+
+Ctrl -> Facade ++ : generateBill(appointmentNo)
+note right of Facade #E0F0ED
+  Facade pattern. The controller makes one
+  call. Subtotal lookup, discount selection,
+  persistence and receipt assembly stay
+  hidden behind this single method.
+end note
+
+Facade -> Repo ++ : findAppointmentByNo(appointmentNo)
+Repo -> DB ++ : SELECT ... FROM appointment\nWHERE appointment_no = ?
+return appointment row
+return Appointment
+
+alt#Gold #FBEDEB appointment status is not COMPLETED
+
+  Facade -> Ctrl : BillingException\n("Appointment is not completed")
+  Ctrl --> Proxy : **422 Unprocessable Entity**
+  Proxy --> UI : BillingException
+  UI -> User : "This appointment has not been\ncompleted yet, so it cannot be billed."
+  note right of UI #FBEDEB
+    FR-18 / ASM-05. The appointment lifecycle is
+    what gives billing a defined trigger. Without
+    it, "calculate the bill" has no valid
+    starting point.
+  end note
+
+else #F5FBFA appointment is COMPLETED
+
+  Facade -> Repo ++ : treatmentSubtotal(appointmentNo)
+  Repo -> DB ++ : SELECT fn_treatment_subtotal(?)
+  note right of DB #E0F0ED
+    Stored **function**. Summing treatment prices
+    is set arithmetic - the database does it in
+    one pass instead of Java fetching every row
+    across the network to add them up.
+  end note
+  return 27,000.00
+  return BigDecimal subtotal
+
+  Facade -> Facade : resolveDiscount(patient)
+  note right of Facade
+    ASM-12. Selects one concrete strategy:
+    senior citizen 10%, loyalty 5%,
+    staff 15%, or none. Largest wins.
+  end note
+
+  create Strat
+  Facade -> Strat : new SeniorCitizenDiscount()
+  Facade -> Strat ++ : calculate(27,000.00)
+  return 2,700.00
+  note right of Strat #E0F0ED
+    Strategy pattern. Adding a new discount rule
+    means adding one class - BillingFacade is
+    never edited. Open/closed principle.
+  end note
+
+  Facade -> Repo ++ : generateBill(appointmentNo,\ndiscountAmount)
+  Repo -> DB ++ : CALL sp_generate_bill(?, ?)
+  note right of DB #E0F0ED
+    Stored **procedure**, one transaction:
+    adds the dentist consultation fee,
+    subtracts the discount, INSERTs the bill
+    header and every bill line together.
+    Either all of it commits or none does -
+    a half-written bill is impossible.
+  end note
+  DB -> DB : INSERT INTO bill (...)\nINSERT INTO bill_line (...)
+  return bill_no = BIL-2026-000098
+  return Bill
+
+  Facade -> Ctrl -- : Bill(consultationFee 3,000.00,\nsubtotal 27,000.00,\ndiscount 2,700.00,\ntotalPayable 27,300.00)
+  Ctrl --> Proxy -- : **201 Created** { BillDTO }
+  return BillDTO
+  UI -> User : display bill summary
+
+  opt#Gold #F5FBFA staff chooses to print  -  extend UC-18
+    User -> UI : click Print Receipt
+    UI -> Proxy ++ : printReceipt("BIL-2026-000098")
+    Proxy -> Ctrl ++ : **GET /api/bills/BIL-2026-000098/receipt**
+    Ctrl --> Proxy -- : **200 OK** application/pdf
+    return byte[]
+    UI -> User : receipt sent to printer
+  end
+
+  UI -> User -- : done
+end
+
+@enduml
