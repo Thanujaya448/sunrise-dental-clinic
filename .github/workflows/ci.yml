@@ -1,0 +1,293 @@
+# =====================================================================
+#  CIS6003 Advanced Programming - WRIT1
+#  Sunrise Dental Clinic - continuous integration
+#
+#  Every push and every pull request runs three independent jobs, one per
+#  tier of the architecture:
+#
+#     unit-tests      tier 2 business logic, with the database replaced by
+#                     a hand-written test double. Proves the tiers are
+#                     genuinely separated - if a business rule had leaked
+#                     into a SQL string, these tests could not run at all.
+#     database-rules  tier 3, against a real MySQL 8 server. Proves the
+#                     trigger and stored procedure enforce their rules,
+#                     which no Java test can prove.
+#     desktop-client  tier 1b compiles against the same API contract.
+#
+#  A red build blocks the merge, so main is always in a state that runs.
+# =====================================================================
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+    branches: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+
+  # ===================================================================
+  #  TIER 2 - business logic, no database
+  # ===================================================================
+  unit-tests:
+    name: Tier 2 - unit tests and coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run the test suite with JaCoCo
+        working-directory: clinic-service
+        run: mvn -B -ntp verify
+
+      - name: Summarise the results
+        if: always()
+        working-directory: clinic-service
+        run: |
+          echo "## Tier 2 test results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -d target/surefire-reports ]; then
+            total=$(grep -ho 'tests="[0-9]*"' target/surefire-reports/*.xml | grep -o '[0-9]*' | paste -sd+ | bc)
+            fails=$(grep -ho 'failures="[0-9]*"' target/surefire-reports/*.xml | grep -o '[0-9]*' | paste -sd+ | bc)
+            errs=$(grep -ho 'errors="[0-9]*"' target/surefire-reports/*.xml | grep -o '[0-9]*' | paste -sd+ | bc)
+            echo "| Tests | Failures | Errors |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|------:|---------:|-------:|" >> "$GITHUB_STEP_SUMMARY"
+            echo "| $total | $fails | $errs |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Line coverage by package" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Package | Covered | Missed | Coverage |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---------|--------:|-------:|---------:|" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -f target/site/jacoco/jacoco.csv ]; then
+            awk -F, 'NR>1 {cov[$2]+=$9; mis[$2]+=$8}
+                     END {for (p in cov) {
+                            t = cov[p] + mis[p];
+                            printf "| %s | %d | %d | %.1f%% |\n", p, cov[p], mis[p], (t ? cov[p]*100/t : 0)
+                          }}' target/site/jacoco/jacoco.csv \
+              | sort >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| (no JaCoCo report produced) | | | |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload the JUnit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: clinic-service/target/surefire-reports/
+          if-no-files-found: warn
+
+      - name: Upload the JaCoCo coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-coverage-report
+          path: clinic-service/target/site/jacoco/
+          if-no-files-found: warn
+
+      - name: Upload the runnable JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: clinic-service-jar
+          path: clinic-service/target/*.jar
+          if-no-files-found: warn
+
+  # ===================================================================
+  #  TIER 3 - the rules that live in the database
+  # ===================================================================
+  database-rules:
+    name: Tier 3 - MySQL schema and business rules
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci_root_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_root_password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      # Only ever a throwaway CI database. Real credentials are supplied to
+      # the running service as environment variables, never committed.
+      MYSQL_PWD: ci_root_password
+      MYSQL: mysql -h 127.0.0.1 -P 3306 -uroot
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install the MySQL client
+        run: sudo apt-get update && sudo apt-get install -y mysql-client
+
+      - name: Wait for MySQL to accept connections
+        run: |
+          for i in $(seq 1 30); do
+            if $MYSQL -e "SELECT 1" >/dev/null 2>&1; then echo "MySQL is up"; exit 0; fi
+            sleep 2
+          done
+          echo "MySQL did not start in time"; exit 1
+
+      - name: Confirm the server is MySQL 8 with its default sql_mode
+        run: |
+          $MYSQL -e "SELECT VERSION() AS version, @@sql_mode AS sql_mode\G"
+
+      - name: Build the schema
+        run: |
+          $MYSQL < db/01_schema.sql
+          $MYSQL < db/02_triggers.sql
+          $MYSQL < db/03_functions_procedures.sql
+          $MYSQL < db/04_seed_data.sql
+          $MYSQL < db/05_views.sql
+
+      - name: Health check - every row must say PASS
+        run: |
+          $MYSQL --table < db/08_healthcheck.sql | tee healthcheck.txt
+          if grep -q "FAIL" healthcheck.txt; then
+            echo "::error::At least one health check failed"
+            exit 1
+          fi
+          echo "All health checks passed"
+
+      - name: Business rule - the overlap trigger must REJECT a clashing booking
+        run: |
+          set +e
+          $MYSQL sunrise_clinic -e "
+            INSERT INTO appointment (patient_id, dentist_id, appointment_date,
+                                     start_time, end_time, created_by)
+            SELECT (SELECT patient_id FROM patient WHERE contact_number = '0712345678'),
+                   (SELECT dentist_id FROM dentist WHERE registration_no = 'SLMC-14872'),
+                   DATE_ADD(CURDATE(), INTERVAL 2 DAY), '14:15:00', '14:45:00',
+                   (SELECT staff_id FROM staff WHERE username = 'rmenaka');" 2>error.txt
+          status=$?
+          set -e
+          cat error.txt
+          if [ $status -eq 0 ]; then
+            echo "::error::A clashing appointment was accepted - trg_appointment_no_overlap did not fire"
+            exit 1
+          fi
+          echo "PASS - the trigger rejected the overlapping booking"
+
+      - name: Business rule - the 10-minute buffer must also be enforced
+        run: |
+          set +e
+          $MYSQL sunrise_clinic -e "
+            INSERT INTO appointment (patient_id, dentist_id, appointment_date,
+                                     start_time, end_time, created_by)
+            SELECT (SELECT patient_id FROM patient WHERE contact_number = '0712345678'),
+                   (SELECT dentist_id FROM dentist WHERE registration_no = 'SLMC-14872'),
+                   DATE_ADD(CURDATE(), INTERVAL 2 DAY), '14:35:00', '15:05:00',
+                   (SELECT staff_id FROM staff WHERE username = 'rmenaka');" 2>error.txt
+          status=$?
+          set -e
+          cat error.txt
+          if [ $status -eq 0 ]; then
+            echo "::error::A booking inside the turnaround buffer was accepted"
+            exit 1
+          fi
+          echo "PASS - the buffer was enforced"
+
+      - name: Business rule - a non-clashing booking must SUCCEED
+        run: |
+          $MYSQL sunrise_clinic -e "
+            INSERT INTO appointment (patient_id, dentist_id, appointment_date,
+                                     start_time, end_time, created_by)
+            SELECT (SELECT patient_id FROM patient WHERE contact_number = '0712345678'),
+                   (SELECT dentist_id FROM dentist WHERE registration_no = 'SLMC-14872'),
+                   DATE_ADD(CURDATE(), INTERVAL 2 DAY), '14:45:00', '15:15:00',
+                   (SELECT staff_id FROM staff WHERE username = 'rmenaka');"
+          echo "PASS - the legal booking was accepted"
+
+      - name: Business rule - sp_generate_bill produces the expected total
+        run: |
+          $MYSQL --table sunrise_clinic -e "
+            SET @appt = (SELECT a.appointment_no FROM appointment a
+                           JOIN patient p ON p.patient_id = a.patient_id
+                          WHERE p.contact_number = '0712345678' AND a.status = 'COMPLETED');
+            CALL sp_generate_bill(@appt, 2800.00, 'Senior citizen 10%', @bill_no);
+            SELECT consultation_fee, treatment_subtotal, discount_amount, total_payable,
+                   IF(total_payable = 28200.00, 'PASS', 'FAIL') AS result
+              FROM bill WHERE bill_no = @bill_no;" | tee bill.txt
+          if grep -q "FAIL" bill.txt; then
+            echo "::error::sp_generate_bill produced the wrong total"
+            exit 1
+          fi
+
+      - name: Business rule - an appointment may be billed once only
+        run: |
+          set +e
+          $MYSQL sunrise_clinic -e "
+            SET @appt = (SELECT a.appointment_no FROM appointment a
+                           JOIN patient p ON p.patient_id = a.patient_id
+                          WHERE p.contact_number = '0712345678' AND a.status = 'COMPLETED');
+            CALL sp_generate_bill(@appt, 2800.00, 'Senior citizen 10%', @bill_no);" 2>error.txt
+          status=$?
+          set -e
+          cat error.txt
+          if [ $status -eq 0 ]; then
+            echo "::error::The same appointment was billed twice"
+            exit 1
+          fi
+          echo "PASS - the second bill was refused"
+
+      - name: Upload the database evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: database-health-check
+          path: |
+            healthcheck.txt
+            bill.txt
+          if-no-files-found: warn
+
+  # ===================================================================
+  #  TIER 1b - the desktop client compiles against the same contract
+  # ===================================================================
+  desktop-client:
+    name: Tier 1b - desktop client build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Compile and package the Swing client
+        working-directory: clinic-client
+        run: mvn -B -ntp package
+
+      - name: Upload the client JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: clinic-client-jar
+          path: clinic-client/target/*.jar
+          if-no-files-found: warn
