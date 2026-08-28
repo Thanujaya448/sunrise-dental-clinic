@@ -50,12 +50,15 @@ Two features were written test-first, and the red and green steps are separate
 commits so the sequence is visible in the Git history rather than merely
 claimed:
 
-| Cycle | Feature | Red commit | Green commit |
+| Cycle | Feature | Red commit — test written first, fails | Green commit — implementation, test passes |
 |---|---|---|---|
-| 1 | `Appointment.overlapsWith()` — the clash rule | *test fails: method returns false* | *rule implemented, 12 tests pass* |
-| 2 | `DiscountStrategy` family — the discount rules | *test fails: no strategy classes* | *Strategy + Null Object implemented, 18 tests pass* |
+| 1 | `Appointment.overlapsWith()` — the clash rule (FR-10, ASM-08) | `bb1ac3d` *test(domain): failing tests for appointment clash rule* | `94d7a0b` *feat(domain): implement clash rule with turnaround buffer* — 12 tests pass |
+| 2 | `DiscountStrategy` family — the discount rules (FR-17, ASM-12) | `ffa86d5` *test(pattern): failing tests for discount strategies* | `8b73b14` *feat(pattern): implement discount strategies with BigDecimal rounding* — 18 tests pass |
 
-> Fill the two commit hashes in from `git log --oneline` before submitting.
+Checking out the red commit and running `mvn test` reproduces the failure; the
+green commit that follows it makes the same tests pass without altering them.
+That sequence in the history is the evidence — the tests were not written after
+the code to fit it.
 
 ---
 
