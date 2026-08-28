@@ -12,6 +12,66 @@
 
 const API = '/api';
 
+
+/* =====================================================================
+   APPEARANCE (light / dark)
+
+   Three states, deliberately: no stored choice means the operating system
+   decides, so a receptionist whose machine is set to dark gets dark
+   without touching anything. An explicit choice is remembered per browser
+   in localStorage and overrides the system in both directions.
+
+   localStorage is used rather than the server because appearance belongs
+   to the device, not the account - the same nurse on the front desk PC and
+   on a laptop may reasonably want different settings.
+   ===================================================================== */
+const Theme = {
+  KEY: 'clinic.theme',
+
+  stored() {
+    try { return localStorage.getItem(Theme.KEY); } catch { return null; }
+  },
+
+  apply(choice) {
+    if (choice === 'light' || choice === 'dark') {
+      document.documentElement.setAttribute('data-theme', choice);
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    Theme.paintToggle(choice);
+  },
+
+  /** Marks the button that matches the current setting. */
+  paintToggle(choice) {
+    const active = choice || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.querySelectorAll('[data-theme-choice]').forEach(b => {
+      b.setAttribute('aria-pressed', String(b.dataset.themeChoice === active));
+    });
+  },
+
+  set(choice) {
+    try {
+      if (choice) localStorage.setItem(Theme.KEY, choice);
+      else localStorage.removeItem(Theme.KEY);
+    } catch { /* private browsing - the choice simply is not remembered */ }
+    Theme.apply(choice);
+  },
+
+  init() {
+    Theme.apply(Theme.stored());
+    document.querySelectorAll('[data-theme-choice]').forEach(b => {
+      b.addEventListener('click', () => {
+        // Clicking the already-active side hands control back to the OS.
+        const wanted = b.dataset.themeChoice;
+        Theme.set(Theme.stored() === wanted ? null : wanted);
+      });
+    });
+    // Follow the OS while no explicit choice is stored.
+    window.matchMedia('(prefers-color-scheme: dark)')
+      .addEventListener('change', () => { if (!Theme.stored()) Theme.paintToggle(null); });
+  }
+};
+
 /* =====================================================================
    SESSION (FR-04)
 
@@ -173,20 +233,34 @@ async function busy(button, work) {
    Navigation - FR-05, the tabs a role may use
    ===================================================================== */
 const TABS = [
-  { id: 'book',    label: 'Book',     roles: ['RECEPTIONIST', 'ADMINISTRATOR'] },
-  { id: 'search',  label: 'Search',   roles: ['RECEPTIONIST', 'DENTIST', 'ADMINISTRATOR'] },
-  { id: 'billing', label: 'Billing',  roles: ['RECEPTIONIST', 'ADMINISTRATOR'] },
-  { id: 'reports', label: 'Reports',  roles: ['ADMINISTRATOR'] },
-  { id: 'help',    label: 'Help',     roles: ['RECEPTIONIST', 'DENTIST', 'ADMINISTRATOR'] }
+  { id: 'book',    label: 'Book',           icon: 'i-book',    roles: ['RECEPTIONIST', 'ADMINISTRATOR'] },
+  { id: 'search',  label: 'Appointments',   icon: 'i-search',  roles: ['RECEPTIONIST', 'DENTIST', 'ADMINISTRATOR'] },
+  { id: 'billing', label: 'Billing',        icon: 'i-billing', roles: ['RECEPTIONIST', 'ADMINISTRATOR'] },
+  { id: 'reports', label: 'Reports',        icon: 'i-reports', roles: ['ADMINISTRATOR'] },
+  { id: 'help',    label: 'Help',           icon: 'i-help',    roles: ['RECEPTIONIST', 'DENTIST', 'ADMINISTRATOR'] }
 ];
 
+/** Builds an <svg><use href="#id"/></svg> without touching innerHTML. */
+function icon(id) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('class', 'ico');
+  svg.setAttribute('aria-hidden', 'true');
+  const use = document.createElementNS(NS, 'use');
+  use.setAttribute('href', '#' + id);
+  svg.appendChild(use);
+  return svg;
+}
+
 function buildTabs() {
-  const nav = $('#tabs');
+  const nav = $('#nav');
   nav.replaceChildren();
   TABS.filter(t => Session.can(...t.roles)).forEach(t => {
-    const b = el('button', 'tab', t.label);
+    const b = el('button', 'nav-item');
     b.type = 'button';
     b.dataset.panel = t.id;
+    b.appendChild(icon(t.icon));
+    b.appendChild(el('span', null, t.label));
     b.addEventListener('click', () => showPanel(t.id));
     nav.appendChild(b);
   });
@@ -197,7 +271,10 @@ function showPanel(id) {
     const panel = $(`#panel-${t.id}`);
     if (panel) panel.hidden = t.id !== id;
   });
-  $$('.tab').forEach(b => b.classList.toggle('active', b.dataset.panel === id));
+  $$('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.panel === id));
+  const sub = $('#greeting-sub');
+  if (sub) sub.textContent = PANEL_SUB[id] || '';
+  if (id === 'reports' && !$('#report-list').children.length) loadReports();
 }
 
 /* =====================================================================
@@ -211,12 +288,31 @@ function showLogin(message) {
   stopSessionClock();
 }
 
+const PANEL_SUB = {
+  book:    'Find the patient, pick a slot, and we will keep the diary clash-free.',
+  search:  'Look up one appointment, or see how a whole day is shaping up.',
+  billing: 'Produce and print a bill for a visit that has been completed.',
+  reports: 'Four questions worth asking about how the clinic is running.',
+  help:    'Everything the front desk needs, in plain language.'
+};
+
+function timeOfDay() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
 async function enterApp() {
   const s = Session.load();
   $('#login-view').hidden = true;
   $('#app-view').hidden = false;
+
+  const firstName = s.fullName.replace(/^(Dr\.?|Mr\.?|Ms\.?|Mrs\.?)\s+/i, '').split(/\s+/)[0];
+  $('#greeting').textContent = `${timeOfDay()}, ${firstName}`;
   $('#who-name').textContent = s.fullName;
   $('#who-role').textContent = s.role.charAt(0) + s.role.slice(1).toLowerCase();
+  $('#who-initials').textContent = s.fullName.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 
   buildTabs();
   showPanel(TABS.find(t => Session.can(...t.roles)).id);
@@ -264,9 +360,9 @@ function startSessionClock() {
     const s = Session.load();
     if (!s) return;
     const left = Math.max(0, Math.floor((new Date(s.expiresAt) - new Date()) / 1000));
-    const pill = $('#session-pill');
-    pill.textContent = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
-    pill.classList.toggle('expiring', left < 300);
+    $('#session-pill').textContent =
+      `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
+    $('#session-box').classList.toggle('expiring', left < 300);
     if (left === 0) {
       Session.clear();
       showLogin('Your session expired after 20 minutes of inactivity.');
@@ -324,8 +420,12 @@ async function searchPatients() {
 
     if (!rows.length) {
       const tr = el('tr', 'empty');
-      tr.appendChild(el('td', null, `No patient matched "${term}". Use New patient to register them.`))
-        .colSpan = 4;
+      const td = el('td');
+      td.colSpan = 4;
+      td.appendChild(icon('i-people')).classList.add('empty-ico');
+      td.appendChild(el('span', null,
+        `No one matched "${term}". If they are new, use + New patient.`));
+      tr.appendChild(td);
       tbody.appendChild(tr);
       return;
     }
@@ -388,7 +488,7 @@ $('#patient-dialog').addEventListener('close', async () => {
 
   try {
     const created = await api.addPatient(p);
-    toast(`Patient registered as ${created.patientNo}.`);
+    toast(`${created.fullName} is registered as ${created.patientNo}.`);
     $('#patient-search').value = created.patientNo;
     await searchPatients();
   } catch (err) { handle(err); }
@@ -423,8 +523,8 @@ async function attemptBooking(startTime) {
 
   try {
     const saved = await busy($('#book-btn'), () => api.book(payload));
-    toast(`Booked — ${saved.appointmentNo}, ${saved.dentistName}, `
-        + `${saved.appointmentDate} ${saved.startTime}–${saved.endTime}`);
+    toast(`All set — ${saved.appointmentNo} with ${saved.dentistName}, `
+        + `${saved.appointmentDate} at ${saved.startTime.slice(0, 5)}.`);
     $('#book-notes').value = '';
   } catch (err) {
     if (err.status === 409 && err.suggestedSlots.length) {
@@ -480,13 +580,23 @@ async function loadDay() {
 
     if (!rows.length) {
       const tr = el('tr', 'empty');
-      const td = el('td', null, `No appointments on ${day}.`);
+      const td = el('td');
       td.colSpan = 5;
+      td.appendChild(icon('i-book')).classList.add('empty-ico');
+      td.appendChild(el('span', null, `Nothing booked on ${day} — a clear day.`));
       tr.appendChild(td);
       tbody.appendChild(tr);
       $('#appt-detail').hidden = true;
+      $('#day-stats').hidden = true;
       return;
     }
+
+    const count = (st) => rows.filter(a => a.status === st).length;
+    $('#stat-total').textContent  = rows.length;
+    $('#stat-booked').textContent = count('BOOKED');
+    $('#stat-done').textContent   = count('COMPLETED');
+    $('#stat-miss').textContent   = count('CANCELLED') + count('NO_SHOW');
+    $('#day-stats').hidden = false;
 
     rows.forEach(a => {
       const tr = el('tr');
@@ -596,7 +706,7 @@ async function generateBill() {
   try {
     const bill = await busy($('#bill-generate-btn'), () => api.generateBill(no));
     renderReceipt(bill);
-    toast(`Bill ${bill.billNo} created.`);
+    toast(`Bill ${bill.billNo} is ready to print.`);
   } catch (err) { handle(err); }
 }
 
@@ -684,27 +794,34 @@ async function runReport(id) {
 
     if (!rows.length) {
       const tr = el('tr', 'empty');
-      const td = el('td', null, 'No data yet. Complete some appointments or generate bills, then run it again.');
+      const td = el('td', null, 'Nothing to show yet — complete a few visits or produce a bill, then run this again.');
       tr.appendChild(td);
       tbody.appendChild(tr);
       return;
     }
 
     const columns = Object.keys(rows[0]);
+    // A column is numeric if its first value is - so the header aligns with
+    // the cells beneath it.
+    const numeric = {};
+    columns.forEach(c => { numeric[c] = typeof rows[0][c] === 'number'; });
+
     const headRow = el('tr');
     columns.forEach(c => {
       const label = c.replace(/_/g, ' ');
-      headRow.appendChild(el('th', null, label.charAt(0).toUpperCase() + label.slice(1)));
+      headRow.appendChild(el('th', numeric[c] ? 'num' : null,
+        label.charAt(0).toUpperCase() + label.slice(1)));
     });
     thead.appendChild(headRow);
 
     rows.forEach(r => {
-      const tr = el('tr', 'empty');   // not clickable
+      const tr = el('tr', 'static-row');   // data row, not selectable
       columns.forEach(c => {
         const v = r[c];
-        const numeric = typeof v === 'number';
-        tr.appendChild(el('td', numeric ? 'num' : null,
-          numeric ? v.toLocaleString('en-LK') : text(v)));
+        tr.appendChild(el('td', numeric[c] ? 'num' : null,
+          typeof v === 'number'
+            ? v.toLocaleString('en-LK', { maximumFractionDigits: 2 })
+            : text(v)));
       });
       tbody.appendChild(tr);
     });
@@ -714,12 +831,7 @@ async function runReport(id) {
 /* =====================================================================
    Start-up
    ===================================================================== */
-document.addEventListener('click', (e) => {
-  // Load the report catalogue the first time the tab is opened.
-  if (e.target.dataset && e.target.dataset.panel === 'reports' && !$('#report-list').children.length) {
-    loadReports();
-  }
-});
+Theme.init();
 
 if (Session.isLive()) {
   enterApp().catch(handle);
