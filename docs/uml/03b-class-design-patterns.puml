@@ -1,0 +1,132 @@
+@startuml Sunrise-Dental-Clinic-Design-Patterns
+' =====================================================================
+'  CIS6003 Advanced Programming - WRIT1
+'  Task B - Design patterns in the business tier
+'
+'  A focused companion to the full design class diagram. It shows only
+'  the collaborations that carry a pattern, so the argument in the
+'  report can be read off one page. Every class exists in the
+'  repository.                             Author: <your name / student ID>
+' =====================================================================
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 4
+skinparam ArrowColor #0E2B2E
+skinparam ArrowFontSize 11
+skinparam nodesep 22
+skinparam ranksep 40
+skinparam DefaultFontName "Segoe UI"
+skinparam packageStyle rectangle
+skinparam class {
+  BorderColor #0E2B2E
+  BackgroundColor #FFFFFF
+  HeaderBackgroundColor #E9F0EE
+  FontSize 12
+  AttributeFontSize 11
+}
+skinparam package {
+  BorderColor #0C7B72
+  FontColor #0C7B72
+  FontSize 13
+  FontStyle bold
+}
+
+package "api" as P1 {
+  class ClinicController <<control>> {
+    15 endpoints; every one opens with
+    auth.requireRole(...)   (FR-05)
+  }
+  class GlobalExceptionHandler {
+    Domain exception -> HTTP status,
+    decided in exactly one place
+  }
+}
+
+package "service" as P2 {
+  class AppointmentService {
+    + book(req, staffId) : AppointmentDTO
+    - clashes(...) : boolean
+    - nextFreeSlots(...) : List<LocalTime>
+  }
+  class BillingFacade <<Facade>> {
+    + generateBill(appointmentNo) : BillDTO
+    ..
+    One call hides: resolve patient,
+    choose discount, invoke procedure,
+    read the bill back
+  }
+  class AuthenticationService
+  class ReportService
+}
+
+package "pattern" as P3 {
+  class DiscountPolicy <<factory method>> {
+    + resolve(patient, on) : DiscountStrategy
+  }
+  interface DiscountStrategy <<Strategy>> {
+    + calculate(subtotal) : BigDecimal
+    + getLabel() : String
+  }
+  abstract class PercentageDiscount <<Template Method>> {
+    + calculate(subtotal) : BigDecimal
+    ..
+    HALF_UP, 2dp, in one place
+  }
+  class SeniorCitizenDiscount
+  class LoyaltyDiscount
+  class StaffFamilyDiscount
+  class NoDiscount <<Null Object>> {
+    always 0.00, never null
+  }
+
+  interface AppointmentObserver <<Observer>>
+  class AuditLogObserver
+  class NotificationObserver <<STUB>>
+}
+
+package "repository" as P4 {
+  interface ClinicRepository <<Repository>>
+  class JdbcClinicRepository <<DAO>>
+}
+
+package "MySQL" as P5 {
+  class "«trigger» trg_appointment_no_overlap" as TRG
+  class "«procedure» sp_generate_bill" as SP
+}
+
+ClinicController ..> AuthenticationService : requireRole() >
+ClinicController ..> AppointmentService
+ClinicController ..> BillingFacade
+ClinicController ..> ReportService
+ClinicController ..> GlobalExceptionHandler : errors handled by >
+
+BillingFacade ..> DiscountPolicy : which rule? >
+DiscountPolicy ..> DiscountStrategy : creates >
+BillingFacade ..> DiscountStrategy : calculate() >
+
+DiscountStrategy <|.. PercentageDiscount
+DiscountStrategy <|.. NoDiscount
+PercentageDiscount <|-- SeniorCitizenDiscount
+PercentageDiscount <|-- LoyaltyDiscount
+PercentageDiscount <|-- StaffFamilyDiscount
+
+AppointmentService "1" o-- "0..*" AppointmentObserver : notifies >
+AppointmentObserver <|.. AuditLogObserver
+AppointmentObserver <|.. NotificationObserver
+
+AppointmentService ..> ClinicRepository
+BillingFacade      ..> ClinicRepository
+ClinicRepository <|.. JdbcClinicRepository
+JdbcClinicRepository ..> TRG : INSERT checked by >
+JdbcClinicRepository ..> SP  : CALL >
+
+note bottom of P3
+  **Adding a fifth discount rule is adding a class.**
+  BillingFacade, DiscountPolicy and every existing
+  rule stay untouched - the open/closed principle
+  in practice, and the reason a chain of if/else
+  inside the billing code was rejected.
+end note
+
+@enduml

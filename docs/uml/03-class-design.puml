@@ -3,8 +3,12 @@
 '  CIS6003 Advanced Programming - WRIT1
 '  Sunrise Dental Clinic Appointment & Patient Management System
 '  Task B - Design / Architecture Class Diagram
-'           Shows the three physical tiers and the design patterns
-'           applied in each.          Author: <your name / student ID>
+'
+'  This diagram is generated from the IMPLEMENTED system, not from an
+'  earlier design intent. Every class shown exists in the repository
+'  under the package given. Where the built design differs from the
+'  first draft, the report explains why in section 5.
+'                                          Author: <your name / student ID>
 ' =====================================================================
 
 skinparam backgroundColor #FFFFFF
@@ -12,8 +16,8 @@ skinparam shadowing false
 skinparam roundcorner 4
 skinparam ArrowColor #0E2B2E
 skinparam ArrowFontSize 11
-skinparam nodesep 28
-skinparam ranksep 50
+skinparam nodesep 26
+skinparam ranksep 48
 skinparam DefaultFontName "Segoe UI"
 skinparam packageStyle rectangle
 
@@ -34,63 +38,61 @@ skinparam package {
 ' =====================================================================
 '  TIER 1 - PRESENTATION
 '
-'  TWO independent clients over one API. Neither holds a business rule, so
-'  a second client could be added without duplicating any logic - which is
+'  TWO independent clients over one API. Neither holds a business rule,
+'  so the second could be added without duplicating any logic - which is
 '  the practical proof that the tiers are genuinely separated.
 ' =====================================================================
 
-package "TIER 1a - browser client  [HTML / CSS / JS]" as T1A {
+package "TIER 1a - browser client  [static/ : HTML, CSS, JS]" as T1A {
 
   class "index.html" as HTML <<view>> {
     Login, Book, Search, Billing,
-    Reports and Help sections
+    Reports and Help panels
     ..
-    Sections are shown and hidden by
+    Panels are shown and hidden by
     showPanel(); no page reloads.
   }
 
   class "app.css" as CSS <<style>> {
-    Design tokens, responsive grid
-    @media print - strips navigation
-    so only the receipt is printed
+    Design tokens; three-state theming
+    (light / dark / system)
+    @media print - strips navigation so
+    only the receipt is printed
   }
 
-  class Session <<Singleton>> {
+  class "Session (app.js)" as JSSESSION <<Singleton>> {
     + save(dto) : void
     + token() : String
     + role() : String
     + isLive() : boolean
     + can(...roles) : boolean
     ..
-    Token held in sessionStorage, not a
-    cookie: attached deliberately, so
-    CSRF does not apply. Cleared when
-    the tab closes.
+    One module-level object holds the
+    token in sessionStorage, not a
+    cookie: it is attached deliberately,
+    so CSRF does not apply.
   }
 
-  class "request()" as FETCH <<Proxy>> {
+  class "request() (app.js)" as FETCH <<Proxy>> {
     + request(method, path, body) : JSON
     - attaches Authorization header
     - maps 401 to sign-in, 409 to slots
   }
 
-  class api <<facade>> {
+  class "api (app.js)" as JSAPI <<Facade>> {
     + login() + book() + appointment()
     + generateBill() + report() ...
   }
 
-  class ApiError {
+  class "ApiError (app.js)" as APIERR {
     + status : int
     + suggestedSlots : String[]
   }
 }
 
-package "TIER 1b - desktop client  [Java Swing]" as T1B {
+package "TIER 1b - desktop client  [lk.sunrise.client]" as T1B {
 
-  class MainMenuFrame <<boundary>> {
-    - session : Session
-    + showFor(role : Role) : void
-  }
+  class MainMenuFrame <<boundary>>
   class LoginFrame <<boundary>>
   class BookAppointmentFrame <<boundary>>
   class SearchAppointmentFrame <<boundary>>
@@ -103,7 +105,6 @@ package "TIER 1b - desktop client  [Java Swing]" as T1B {
     - httpClient : HttpClient
     + get(path : String, type : Class<T>) : T
     + post(path : String, body : Object, type : Class<T>) : T
-    - attachBearerToken(req : HttpRequest.Builder) : void
   }
 
   class AuthServiceProxy <<Proxy>> {
@@ -111,7 +112,7 @@ package "TIER 1b - desktop client  [Java Swing]" as T1B {
     + logout() : void
   }
   class ClinicServiceProxy <<Proxy>> {
-    + book(dto : BookingRequestDTO) : AppointmentDTO
+    + book(dto : BookingRequest) : AppointmentDTO
     + findByNumber(no : String) : AppointmentDTO
     + generateBill(appointmentNo : String) : BillDTO
   }
@@ -128,92 +129,220 @@ package "TIER 1b - desktop client  [Java Swing]" as T1B {
 ' =====================================================================
 '  TIER 2 - BUSINESS   (Spring Boot REST service, separate process)
 ' =====================================================================
-package "TIER 2 - api  [REST controllers]" as T2A {
-  class AuthController <<control>> {
-    + login(req : LoginRequest) : ResponseEntity<SessionDTO>
-  }
-  class AppointmentController <<control>> {
-    + book(req : BookingRequestDTO) : ResponseEntity<AppointmentDTO>
-    + findByNumber(no : String) : ResponseEntity<AppointmentDTO>
-    + cancel(no : String) : ResponseEntity<Void>
-  }
-  class BillingController <<control>>
-  class ReportController <<control>>
+package "TIER 2 - lk.sunrise.clinic.api" as T2A {
 
-  class AppointmentMapper <<Adapter>> {
-    + toDTO(entity : Appointment) : AppointmentDTO
-    + toEntity(dto : BookingRequestDTO) : Appointment
+  class ClinicController <<control>> {
+    + login(req : LoginRequest) : SessionDTO
+    + logout(token : String) : void
+    + dentists(token : String) : List<DentistDTO>
+    + patients(token, term) : List<PatientDTO>
+    + registerPatient(token, req) : PatientDTO
+    + book(token, req) : AppointmentDTO
+    + findByNumber(token, no) : AppointmentDTO
+    + findOn(token, date) : List<AppointmentDTO>
+    + cancel(token, no, reason) : void
+    + complete(token, no) : void
+    + noShow(token, no) : void
+    + generateBill(token, no) : BillDTO
+    + bill(token, billNo) : BillDTO
+    + reportCatalogue(token) : List<Map>
+    + runReport(token, type) : List<Map>
+    ..
+    ONE controller, fifteen endpoints.
+    EVERY method opens with
+    auth.requireRole(...) - authorisation
+    is enforced here, not by hiding
+    buttons in a client (FR-05).
+  }
+
+  class TreatmentController <<control>> {
+    + all() : List<TreatmentType>
+    + byCode(code : String) : TreatmentType
+  }
+
+  class GlobalExceptionHandler <<control>> {
+    + handle(ex : ValidationException) : 400
+    + handle(ex : AuthenticationFailedException) : 401
+    + handle(ex : ForbiddenException) : 403
+    + handle(ex : NotFoundException) : 404
+    + handle(ex : SlotUnavailableException) : 409 + slots
+    + handle(ex : AccountLockedException) : 423
+    + handle(ex : BillingException) : 422
+    ..
+    The service tier throws MEANING;
+    HTTP status codes are decided in
+    exactly one place.
+  }
+
+  class StartupCheck <<control>> {
+    Verifies the MySQL connection on
+    boot and fails fast if it is absent.
   }
 }
 
-package "TIER 2 - service  [business logic]" as T2B {
-  class AuthenticationService
+package "TIER 2 - lk.sunrise.clinic.service" as T2B {
+  class AuthenticationService {
+    - encoder : BCryptPasswordEncoder
+    - sessions : Map<String, Session>
+    + login(username, rawPassword) : SessionDTO
+    + requireSession(token : String) : Session
+    + requireRole(token : String, roles : String...) : Session
+    + logout(token : String) : void
+  }
   class AppointmentService {
-    + book(request : BookingRequest) : Appointment
-    - assertNoClash(d : Dentist, from : LocalTime, to : LocalTime) : void
+    + book(req : BookingRequest, staffId : long) : AppointmentDTO
+    + findByNumber(no : String) : AppointmentDTO
+    + cancel(no : String, reason : String) : void
+    + markCompleted(no : String) : void
+    - assertWithinOpeningHours(...) : void
+    - clashes(...) : boolean
+    - nextFreeSlots(...) : List<LocalTime>
   }
   class BillingFacade <<Facade>> {
-    + generateBill(appointmentNo : String) : Bill
+    - discountPolicy : DiscountPolicy
+    + generateBill(appointmentNo : String) : BillDTO
+    + findByNumber(billNo : String) : BillDTO
   }
-  class ReportService
+  class ReportService {
+    + run(typeName : String) : List<Map>
+    + catalogue() : List<Map>
+    ..
+    A fixed enum maps a report name to a
+    view name, so a caller can never
+    influence the SQL (NFR-06).
+  }
+  enum ReportType {
+    DAILY_REVENUE
+    DENTIST_UTILISATION
+    TREATMENT_MIX
+    ATTENDANCE
+  }
 }
 
-package "TIER 2 - pattern  [GoF participants]" as T2C {
+package "TIER 2 - lk.sunrise.clinic.pattern" as T2C {
   interface DiscountStrategy <<Strategy>> {
     + {abstract} calculate(subtotal : BigDecimal) : BigDecimal
+    + {abstract} getLabel() : String
+  }
+  abstract class PercentageDiscount <<Template Method>> {
+    - rate : BigDecimal
+    - label : String
+    + calculate(subtotal : BigDecimal) : BigDecimal
+    ..
+    HALF_UP to 2dp in ONE place, so the
+    three rules cannot drift apart.
   }
   class SeniorCitizenDiscount
   class LoyaltyDiscount
-  class StaffDiscount
-  class NoDiscount
+  class StaffFamilyDiscount
+  class NoDiscount <<Null Object>> {
+    + calculate(...) : BigDecimal  // always 0.00
+    + getLabel() : "No discount"
+  }
+  class DiscountPolicy <<factory method>> {
+    + resolve(patient : Patient, on : LocalDate) : DiscountStrategy
+    ..
+    Chooses WHICH rule applies and
+    returns it. Most generous wins;
+    rules never stack (ASM-12).
+  }
 
   interface AppointmentObserver <<Observer>> {
-    + {abstract} onAppointmentCreated(a : Appointment) : void
+    + {abstract} onAppointmentCreated(no, patient, contact, dentist, when) : void
+    + {abstract} onAppointmentCancelled(no : String, reason : String) : void
   }
-  class NotificationObserver
-  class AuditLogObserver
-
-  abstract class AbstractReport <<Template Method>> {
-    + {final} generate() : Report
-    # {abstract} buildBody() : Section
+  class NotificationObserver <<STUB>> {
+    Logs the message it WOULD send.
+    Delivery is out of scope (ASM-13).
   }
-  class DailyRevenueReport
-  class DentistUtilisationReport
-  class ReportFactory <<Factory Method>> {
-    + {static} create(type : ReportType) : AbstractReport
+  class AuditLogObserver {
+    Writes to audit_entry (FR-24).
   }
 }
 
-package "TIER 2 - repository  [DAO]" as T2D {
-  interface AppointmentRepository <<Repository>> {
-    + save(a : Appointment) : Appointment
-    + findByAppointmentNo(no : String) : Optional<Appointment>
-    + findClashes(dentistId : Long, d : LocalDate, from : LocalTime, to : LocalTime) : List<Appointment>
+package "TIER 2 - lk.sunrise.clinic.repository" as T2D {
+  interface ClinicRepository <<Repository>> {
+    + findStaffByUsername(u : String) : Optional<Map>
+    + findPatientByNo(no : String) : Optional<PatientDTO>
+    + findDayBookings(dentistId : long, d : LocalDate) : List<Map>
+    + insertAppointment(...) : String
+    + findAppointmentByNo(no : String) : Optional<AppointmentDTO>
+    + updateStatus(no : String, status : String, reason : String) : int
+    + callGenerateBill(no, discount, label) : String
+    + runReportView(viewName : String) : List<Map>
+    + writeAudit(...) : void
+    ..
+    ONE interface, not five. The report
+    argues this is right for the size and
+    would be split per aggregate if the
+    system grew.
   }
-  interface PatientRepository <<Repository>>
-  interface BillRepository <<Repository>>
+  class JdbcClinicRepository <<DAO>> {
+    - jdbc : JdbcTemplate
+    - SimpleJdbcCall for sp_generate_bill
+  }
+  interface TreatmentTypeRepository <<Repository>>
+  class JdbcTreatmentTypeRepository <<DAO>>
+  class Sql <<utility>> {
+    Defensive JDBC type conversions, so a
+    driver upgrade cannot cause a
+    ClassCastException at runtime.
+  }
+}
+
+package "TIER 2 - lk.sunrise.clinic.dto / domain" as T2E {
+  class Dtos <<Adapter>> {
+    LoginRequest, SessionDTO, PatientDTO,
+    BookingRequest, AppointmentDTO,
+    BillDTO, BillLineDTO, DentistDTO ...
+    ..
+    Java RECORDS. Deliberately do not
+    mirror the tables: no client ever
+    learns a primary key or a column name.
+  }
+  class Appointment <<entity>> {
+    + overlapsWith(other : Appointment, bufferMinutes : int) : boolean
+  }
+  class Patient <<entity>> {
+    + isSeniorCitizenOn(on : LocalDate) : boolean
+    + qualifiesForLoyalty() : boolean
+  }
+  class TreatmentType <<entity>>
+  enum AppointmentStatus {
+    BOOKED
+    COMPLETED
+    CANCELLED
+    NO_SHOW
+  }
 }
 
 ' =====================================================================
 '  TIER 3 - DATA   (MySQL server, separate process)
 ' =====================================================================
-package "TIER 3 - MySQL  [data]" as T3 {
+package "TIER 3 - MySQL  [sunrise_clinic]" as T3 {
   class "«table» appointment" as TBL_APP
   class "«table» patient"     as TBL_PAT
   class "«table» bill"        as TBL_BILL
   class "«trigger» trg_appointment_no_overlap" as TRG {
-    Rejects an INSERT or UPDATE whose
-    time range overlaps an existing
-    BOOKED appointment for the same dentist.
+    Rejects an INSERT whose time range,
+    widened by the buffer, overlaps an
+    existing BOOKED appointment for the
+    same dentist. Closes the window the
+    service-tier check cannot (NFR-05).
   }
   class "«function» fn_treatment_subtotal" as FN {
-    Returns the summed price of every
-    treatment on an appointment.
+    Sums the snapshot prices of every
+    treatment on one appointment.
   }
   class "«procedure» sp_generate_bill" as SP {
-    In one transaction: adds the dentist
+    In ONE transaction: adds the dentist
     consultation fee, subtracts the supplied
     discount, writes bill + bill lines.
+  }
+  class "5 «views»" as VIEWS {
+    vw_appointment_detail, vw_daily_revenue,
+    vw_dentist_utilisation, vw_treatment_mix,
+    vw_attendance_rate
   }
 }
 
@@ -222,11 +351,11 @@ package "TIER 3 - MySQL  [data]" as T3 {
 ' ---------------------------------------------------------------------
 
 ' ---- TIER 1a browser ------------------------------------------------
-HTML  ..> CSS   : styled by >
-HTML  ..> api   : calls >
-api   --|> FETCH
-FETCH ..> Session   : reads token >
-FETCH ..> ApiError  : throws >
+HTML  ..> CSS      : styled by >
+HTML  ..> JSAPI    : calls >
+JSAPI ..> FETCH    : delegates to >
+FETCH ..> JSSESSION : reads token >
+FETCH ..> APIERR   : throws >
 
 ' ---- TIER 1b desktop -------------------------------------------------
 LoginFrame              ..> AuthServiceProxy
@@ -236,52 +365,61 @@ SearchAppointmentFrame  ..> ClinicServiceProxy
 BillingFrame            ..> ClinicServiceProxy
 ReportFrame             ..> ClinicServiceProxy
 HelpFrame               ..> MainMenuFrame
-
 AuthServiceProxy        --|> RestClient
 ClinicServiceProxy      --|> RestClient
 RestClient              ..> SessionHolder : reads token >
 
 ' ---- THE BOUNDARY: both clients cross HTTP to reach tier 2 -----------
-FETCH              ..> AuthController        : <<HTTP / JSON>>
-FETCH              ..> AppointmentController : <<HTTP / JSON>>
-AuthServiceProxy   ..> AuthController        : <<HTTP / JSON>>
-ClinicServiceProxy ..> AppointmentController : <<HTTP / JSON>>
-ClinicServiceProxy ..> BillingController     : <<HTTP / JSON>>
+FETCH              ..> ClinicController : <<HTTP / JSON>>
+AuthServiceProxy   ..> ClinicController : <<HTTP / JSON>>
+ClinicServiceProxy ..> ClinicController : <<HTTP / JSON>>
 
-AuthController        ..> AuthenticationService
-AppointmentController ..> AppointmentService
-AppointmentController ..> AppointmentMapper
-BillingController     ..> BillingFacade
-ReportController      ..> ReportService
+' ---- TIER 2 internals -------------------------------------------------
+ClinicController ..> AuthenticationService : requireRole() >
+ClinicController ..> AppointmentService
+ClinicController ..> BillingFacade
+ClinicController ..> ReportService
+ClinicController ..> Dtos
+TreatmentController ..> TreatmentTypeRepository
+GlobalExceptionHandler ..> Dtos
+
+ReportService ..> ReportType : maps name to view >
 
 AppointmentService "1" o-- "0..*" AppointmentObserver : notifies >
-AppointmentService ..> AppointmentRepository
+AppointmentService ..> ClinicRepository
+AppointmentService ..> Appointment
+BillingFacade      ..> DiscountPolicy   : asks which rule >
 BillingFacade      ..> DiscountStrategy : uses >
-BillingFacade      ..> BillRepository
-ReportService      ..> ReportFactory
-ReportFactory      ..> AbstractReport : creates >
+BillingFacade      ..> ClinicRepository
+DiscountPolicy     ..> Patient          : reads age, visits, flag >
+DiscountPolicy     ..> DiscountStrategy : creates >
 
-DiscountStrategy <|.. SeniorCitizenDiscount
-DiscountStrategy <|.. LoyaltyDiscount
-DiscountStrategy <|.. StaffDiscount
+DiscountStrategy <|.. PercentageDiscount
 DiscountStrategy <|.. NoDiscount
+PercentageDiscount <|-- SeniorCitizenDiscount
+PercentageDiscount <|-- LoyaltyDiscount
+PercentageDiscount <|-- StaffFamilyDiscount
 AppointmentObserver <|.. NotificationObserver
 AppointmentObserver <|.. AuditLogObserver
-AbstractReport <|-- DailyRevenueReport
-AbstractReport <|-- DentistUtilisationReport
 
-AppointmentRepository ..> TBL_APP : <<JDBC>>
-PatientRepository     ..> TBL_PAT : <<JDBC>>
-BillRepository        ..> TBL_BILL : <<JDBC>>
-BillRepository        ..> FN       : calls >
-BillRepository        ..> SP       : calls >
-TBL_APP               ..> TRG      : enforced by >
+ClinicRepository <|.. JdbcClinicRepository
+TreatmentTypeRepository <|.. JdbcTreatmentTypeRepository
+JdbcClinicRepository ..> Sql : converts through >
+
+' ---- TIER 2 to TIER 3 --------------------------------------------------
+JdbcClinicRepository ..> TBL_APP  : <<JDBC>>
+JdbcClinicRepository ..> TBL_PAT  : <<JDBC>>
+JdbcClinicRepository ..> TBL_BILL : <<JDBC>>
+JdbcClinicRepository ..> SP       : CALL >
+JdbcClinicRepository ..> VIEWS    : SELECT >
+TBL_APP              ..> TRG      : enforced by >
+SP                   ..> FN       : uses >
 
 legend right
   |= Tier |= Process |= Patterns applied |
-  | 1a Browser | Chrome, served from :8080 | Singleton (Session), Proxy (request),\n Facade (api), Null-safe rendering |
+  | 1a Browser | Chrome, served from :8080 | Singleton (Session), Proxy (request),\n Facade (api) |
   | 1b Desktop | Swing client JAR | Proxy, Singleton, MVC |
-  | 2 Business | Spring Boot, port 8080 | Facade, Strategy, Observer, Factory Method,\n Template Method, Adapter/DTO, Repository,\n DAO, dependency injection |
+  | 2 Business | Spring Boot, port 8080 | Facade, Strategy, Null Object, Observer,\n Template Method, Adapter/DTO, Repository,\n DAO, factory method, dependency injection |
   | 3 Data | MySQL, port 3306 | Trigger, stored function and stored procedure\n enforcing business rules at the data tier |
   | | | **Two independent clients share one API.** Neither\n holds a business rule - if any had leaked into a\n client, the second could not exist without\n duplicating it. The HTTP hop is what makes this a\n **distributed** system rather than a layered one. |
 endlegend
