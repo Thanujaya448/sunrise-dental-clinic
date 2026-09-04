@@ -11,7 +11,8 @@
 --
 --  These are development credentials only and are documented here so the
 --  system can be demonstrated. The plaintext is never stored (FR-02).
---  Author: Thanujaya Hasaranga
+--  Author      : Thanujaya Hasaranga Perera
+--  Reg. number : st20374257
 -- =====================================================================
 
 USE sunrise_clinic;

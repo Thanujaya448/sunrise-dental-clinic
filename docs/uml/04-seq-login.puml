@@ -2,8 +2,14 @@
 ' =====================================================================
 '  CIS6003 Advanced Programming - WRIT1
 '  Task A - Sequence Diagram 1 of 3 : UC-01 Log In
-'  Covers FR-01, FR-02, FR-03, FR-04, FR-05
-'  Author: Thanujaya Hasaranga
+'  Covers FR-01, FR-02, FR-03, FR-04, FR-05, FR-24
+'
+'  Participants and message names are taken from the IMPLEMENTED
+'  classes. The Swing client is shown; the browser client follows the
+'  identical sequence through request() in app.js, which is the point
+'  of putting the rules behind one API.
+'  Author      : Thanujaya Hasaranga Perera
+'  Reg. number : st20374257
 ' =====================================================================
 
 skinparam backgroundColor #FFFFFF
@@ -36,9 +42,10 @@ box "TIER 1 - Swing client" #FCFEFD
 end box
 
 box "TIER 2 - Spring Boot REST service" #FCFEFD
-  participant "AuthController\n<<control>>" as Ctrl
+  participant "ClinicController\n<<control>>" as Ctrl
   participant "AuthenticationService" as Svc
-  participant "StaffUserRepository\n<<Repository>>" as Repo
+  participant "ClinicRepository\n<<Repository>>" as Repo
+  participant "GlobalExceptionHandler" as Err
 end box
 
 database "MySQL" as DB
@@ -63,47 +70,35 @@ note over Proxy, Ctrl #E0F0ED
 end note
 
 Ctrl -> Svc ++ : login(username, rawPassword)
-Svc -> Repo ++ : findByUsername(username)
-Repo -> DB ++ : SELECT staff_id, password_hash,\nrole, active, failed_attempts\nFROM staff WHERE username = ?
+Svc -> Repo ++ : findStaffByUsername(username)
+Repo -> DB ++ : SELECT staff_id, password_hash, full_name,\nrole, active, failed_attempts, locked\nFROM staff WHERE username = ?
 return result row
-return Optional<StaffUser>
+return Optional<Map<String, Object>>
 
-alt#Gold #F5FBFA credentials valid and account active
-
-  Svc -> Svc : BCrypt.matches(rawPassword, passwordHash)
-  note right of Svc
-    FR-02. The stored value is a one-way
-    hash - the plaintext password is never
-    persisted and cannot be recovered.
+alt#Gold #FBEDEB account already locked
+  note right of Svc #FBEDEB
+    FR-03. The lock is checked FIRST, before
+    the password is even compared - a locked
+    account cannot be probed further.
   end note
+  Svc -> Err : AccountLockedException
+  Err --> Proxy : **423 Locked**\n{ "message": "This account is locked..." }
+  Proxy --> UI : ApiException
+  UI -> User : "This account is locked. Please ask\nthe Administrator to unlock it."
 
-  Svc -> Repo : resetFailedAttempts(staffId)
-  Svc -> Svc : createSession(staffUser)
-  note right of Svc
-    FR-04. Token with a 20-minute
-    idle expiry.
+else #FDF6EE password does not match
+  Svc -> Svc : encoder.matches(rawPassword, passwordHash)
+  Svc -> Repo : recordLoginFailure(staffId)
+  Repo -> DB : UPDATE staff SET failed_attempts = failed_attempts + 1,\nlocked = (failed_attempts + 1 >= 5)
+  note right of Repo #FDF6EE
+    FR-03. The counter and the lock are set in
+    ONE statement, so two simultaneous attempts
+    cannot both read the old count.
   end note
-  return SessionDTO(token, role, expiresAt)
-
-  Ctrl --> Proxy -- : **200 OK**\n{ token, role, expiresAt }
-  Proxy -> Holder : store(token, expiresAt)
-  return SessionDTO
-
-  UI -> UI : dispose()
-  UI -> User -- : MainMenuFrame.showFor(role)
-  note left of User
-    FR-05. The menu is built from the role,
-    so a Receptionist never sees the
-    Administration options.
-  end note
-
-else #FDF6EE invalid credentials
-
-  Svc -> Repo : incrementFailedAttempts(staffId)
-  Svc -> Ctrl : AuthenticationException
-  Ctrl --> Proxy : **401 Unauthorized**\n{ "message": "Invalid username or password" }
-  Proxy --> UI : AuthenticationException
-  UI -> User : "Invalid username or password.\n2 attempts remaining."
+  Svc -> Err : AuthenticationFailedException
+  Err --> Proxy : **401 Unauthorized**\n{ "message": "Invalid username or password.\n4 attempts remaining." }
+  Proxy --> UI : ApiException
+  UI -> User : "Invalid username or password.\n4 attempts remaining."
   note right of UI #FDF6EE
     The message deliberately does not say
     **which** field was wrong. Saying so would
@@ -111,17 +106,42 @@ else #FDF6EE invalid credentials
     exists (NFR-06).
   end note
 
-else #FBEDEB account locked after 5 failed attempts
-
-  Svc -> Ctrl : AccountLockedException
-  Ctrl --> Proxy : **423 Locked**
-  Proxy --> UI : AccountLockedException
-  UI -> User : "Account locked. Contact the\nAdministrator to unlock it."
-  note right of UI #FBEDEB
-    FR-03. Rate limiting defends against
-    brute-force password guessing.
+else #F5FBFA credentials valid and account active
+  Svc -> Svc : encoder.matches(rawPassword, passwordHash)
+  note right of Svc
+    FR-02. BCrypt. The stored value is a
+    one-way hash - the plaintext password is
+    never persisted and cannot be recovered.
   end note
 
+  Svc -> Repo : resetLoginFailures(staffId)
+  Svc -> Svc : sessions.put(UUID token, Session)
+  note right of Svc
+    FR-04. The token expires after the
+    configured idle window (20 minutes),
+    read from clinic_setting.
+  end note
+
+  Svc -> Repo : writeAudit(username, "LOGIN", ...)
+  Repo -> DB : INSERT INTO audit_entry
+  note right of Repo
+    FR-24. Who signed in, and when, is
+    recoverable afterwards.
+  end note
+
+  return SessionDTO(token, fullName, role, expiresAt)
+
+  Ctrl --> Proxy -- : **200 OK**\n{ token, fullName, role, expiresAt }
+  Proxy -> Holder : store(token, expiresAt)
+  return SessionDTO
+
+  UI -> UI : dispose()
+  UI -> User -- : MainMenuFrame.showFor(role)
+  note left of User
+    FR-05. The menu is built from the role - but
+    every endpoint still calls requireRole() on
+    the server. Hiding a button is not a control.
+  end note
 end
 
 @enduml

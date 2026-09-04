@@ -10,7 +10,8 @@
 --  ONLY_FULL_GROUP_BY by default and rejects views that select a column
 --  which is neither aggregated nor grouped. Writing them this way is both
 --  standard SQL and portable.
---  Author: Thanujaya Hasaranga
+--  Author      : Thanujaya Hasaranga Perera
+--  Reg. number : st20374257
 -- =====================================================================
 
 USE sunrise_clinic;

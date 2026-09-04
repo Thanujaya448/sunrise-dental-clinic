@@ -1,12 +1,14 @@
 @startuml Seq-03-Generate-Bill
 ' =====================================================================
 '  CIS6003 Advanced Programming - WRIT1
-'  Task A - Sequence Diagram 3 of 3 : UC-15 Generate Bill
-'  Covers FR-13, FR-17, FR-18, FR-19, extend UC-17 and UC-18
-'  Shows: the Facade hiding billing complexity, the Strategy pattern
-'         selecting a discount rule, and a stored function plus a
-'         stored procedure implementing business rules in tier 3.
-'  Author: Thanujaya Hasaranga
+'  Task A - Sequence Diagram 3 of 3 : UC-14 Generate Bill
+'  Covers FR-17, FR-18, FR-19, ASM-05, ASM-10, ASM-12
+'
+'  Participants and message names are taken from the IMPLEMENTED
+'  classes. The figures are the seeded case that db/06_verify.sql and
+'  the CI pipeline both assert: 3,000 + 28,000 - 2,800 = 28,200.00
+'  Author      : Thanujaya Hasaranga Perera
+'  Reg. number : st20374257
 ' =====================================================================
 
 skinparam backgroundColor #FFFFFF
@@ -14,7 +16,7 @@ skinparam shadowing false
 skinparam DefaultFontName "Segoe UI"
 skinparam ArrowColor #0E2B2E
 skinparam sequenceMessageAlign first
-skinparam maxMessageSize 230
+skinparam maxMessageSize 220
 
 skinparam sequence {
   ParticipantBorderColor #0E2B2E
@@ -27,51 +29,62 @@ skinparam sequence {
   BoxFontColor #0C7B72
   GroupBorderColor #0C7B72
   GroupHeaderFontColor #0C7B72
+  DividerBackgroundColor #E9F0EE
 }
 
 actor "Receptionist" as User
 
-box "TIER 1 - Swing client" #FCFEFD
+box "TIER 1 - client" #FCFEFD
   participant "BillingFrame\n<<boundary>>" as UI
-  participant "BillingServiceProxy\n<<Proxy>>" as Proxy
+  participant "ClinicServiceProxy\n<<Proxy>>" as Proxy
 end box
 
 box "TIER 2 - Spring Boot REST service" #FCFEFD
-  participant "BillingController\n<<control>>" as Ctrl
+  participant "ClinicController\n<<control>>" as Ctrl
   participant "BillingFacade\n<<Facade>>" as Facade
+  participant "DiscountPolicy\n<<factory method>>" as Policy
   participant "DiscountStrategy\n<<Strategy>>" as Strat
-  participant "BillRepository\n<<Repository>>" as Repo
+  participant "ClinicRepository\n<<Repository>>" as Repo
 end box
 
 database "MySQL\n+ fn_treatment_subtotal\n+ sp_generate_bill" as DB
 
 autonumber "<b>[00]"
 
-User -> UI ++ : enter appointment number\nAPT-2026-000147
-UI -> Proxy ++ : generateBill("APT-2026-000147")
-Proxy -> Ctrl ++ : **POST /api/bills**\n{ "appointmentNo": "APT-2026-000147" }
+User -> UI ++ : enter appointment number\nAPT-2026-000005
+UI -> Proxy ++ : generateBill("APT-2026-000005")
+Proxy -> Ctrl ++ : **POST /api/bills**\n{ "appointmentNo": "APT-2026-000005" }
 note over Proxy, Ctrl #E0F0ED
   HTTP boundary - tier 1 to tier 2
 end note
 
+Ctrl -> Ctrl : auth.requireRole(token,\nRECEPTIONIST, ADMINISTRATOR)
 Ctrl -> Facade ++ : generateBill(appointmentNo)
 note right of Facade #E0F0ED
-  Facade pattern. The controller makes one
-  call. Subtotal lookup, discount selection,
-  persistence and receipt assembly stay
-  hidden behind this single method.
+  Facade pattern. The controller makes ONE
+  call. Resolving the appointment, choosing
+  the discount rule, invoking the procedure
+  and reading the bill back all stay behind
+  this single method - so both clients share
+  one billing behaviour by construction.
 end note
 
 Facade -> Repo ++ : findAppointmentByNo(appointmentNo)
-Repo -> DB ++ : SELECT ... FROM appointment\nWHERE appointment_no = ?
-return appointment row
-return Appointment
+Repo -> DB ++ : SELECT ... FROM vw_appointment_detail\nWHERE appointment_no = ?
+note right of DB #E0F0ED
+  The view calls the stored **function**
+  fn_treatment_subtotal, so the treatment
+  subtotal is summed in one pass in the
+  database rather than every treatment row
+  crossing the network to be added in Java.
+end note
+return row incl. treatment_subtotal 28,000.00
+return AppointmentDTO
 
-alt#Gold #FBEDEB appointment status is not COMPLETED
-
-  Facade -> Ctrl : BillingException\n("Appointment is not completed")
-  Ctrl --> Proxy : **422 Unprocessable Entity**
-  Proxy --> UI : BillingException
+alt#Gold #FBEDEB status is not COMPLETED
+  Facade -> Ctrl : BillingException
+  Ctrl --> Proxy : **422 Unprocessable Entity**\nmapped by GlobalExceptionHandler
+  Proxy --> UI : ApiException
   UI -> User : "This appointment has not been\ncompleted yet, so it cannot be billed."
   note right of UI #FBEDEB
     FR-18 / ASM-05. The appointment lifecycle is
@@ -80,62 +93,87 @@ alt#Gold #FBEDEB appointment status is not COMPLETED
     starting point.
   end note
 
-else #F5FBFA appointment is COMPLETED
-
-  Facade -> Repo ++ : treatmentSubtotal(appointmentNo)
-  Repo -> DB ++ : SELECT fn_treatment_subtotal(?)
-  note right of DB #E0F0ED
-    Stored **function**. Summing treatment prices
-    is set arithmetic - the database does it in
-    one pass instead of Java fetching every row
-    across the network to add them up.
-  end note
-  return 27,000.00
-  return BigDecimal subtotal
-
-  Facade -> Facade : resolveDiscount(patient)
-  note right of Facade
-    ASM-12. Selects one concrete strategy:
-    senior citizen 10%, loyalty 5%,
-    staff 15%, or none. Largest wins.
+else #FDF6EE already billed
+  Facade -> Repo : findBillByAppointment(appointmentNo)
+  Facade -> Ctrl : BillingException
+  Ctrl --> Proxy : **422 Unprocessable Entity**
+  UI -> User : "This appointment has already\nbeen billed."
+  note right of UI #FDF6EE
+    FR-18. Checked here for a clear message, AND
+    enforced by uq_bill_appt plus a guard inside
+    sp_generate_bill - the service check alone
+    could lose a race.
   end note
 
+else #F5FBFA COMPLETED and not yet billed
+
+  Facade -> Repo ++ : patientDiscountInputs(patientNo)
+  Repo -> DB : SELECT date_of_birth, is_staff_family,\ncompleted_visits
+  return Map of discount inputs
+
+  Facade -> Policy ++ : resolve(patient, LocalDate.now())
+  note right of Policy
+    ASM-12. Chooses WHICH rule applies:
+    staff family 15% > senior 10% > loyalty 5%
+    > none. The most generous wins and rules
+    never stack. Selecting the rule is business
+    policy, so it lives in tier 2.
+  end note
   create Strat
-  Facade -> Strat : new SeniorCitizenDiscount()
-  Facade -> Strat ++ : calculate(27,000.00)
-  return 2,700.00
+  Policy -> Strat : new SeniorCitizenDiscount()
+  return DiscountStrategy
+
+  Facade -> Strat ++ : calculate(28,000.00)
+  return 2,800.00
   note right of Strat #E0F0ED
-    Strategy pattern. Adding a new discount rule
-    means adding one class - BillingFacade is
-    never edited. Open/closed principle.
+    Strategy pattern. Adding a fifth rule means
+    adding one class - BillingFacade and the four
+    existing rules are never edited. Rounding is
+    HALF_UP to 2dp in PercentageDiscount, matching
+    DECIMAL(10,2) in MySQL.
   end note
 
-  Facade -> Repo ++ : generateBill(appointmentNo,\ndiscountAmount)
-  Repo -> DB ++ : CALL sp_generate_bill(?, ?)
+  Facade -> Repo ++ : callGenerateBill(appointmentNo,\n2800.00, "Senior citizen 10%")
+  Repo -> DB ++ : CALL sp_generate_bill(?, ?, ?, OUT bill_no)
   note right of DB #E0F0ED
-    Stored **procedure**, one transaction:
-    adds the dentist consultation fee,
-    subtracts the discount, INSERTs the bill
-    header and every bill line together.
-    Either all of it commits or none does -
-    a half-written bill is impossible.
+    Stored **procedure**, ONE transaction: adds the
+    dentist consultation fee, subtracts the supplied
+    discount, INSERTs the bill header and every bill
+    line together. Either all of it commits or none
+    does - a half-written bill is impossible.
+    An EXIT HANDLER rolls back and re-signals.
   end note
-  DB -> DB : INSERT INTO bill (...)\nINSERT INTO bill_line (...)
-  return bill_no = BIL-2026-000098
-  return Bill
+  DB -> DB : INSERT INTO bill (...)\nINSERT INTO bill_line (...)\nINSERT INTO audit_entry (...)
+  return OUT bill_no = BIL-2026-000001
+  return String billNo
 
-  Facade -> Ctrl -- : Bill(consultationFee 3,000.00,\nsubtotal 27,000.00,\ndiscount 2,700.00,\ntotalPayable 27,300.00)
+  Facade -> Repo ++ : findBillByNo(billNo)
+  Repo -> DB : SELECT bill + bill_line rows
+  return BillDTO
+  note right of Facade
+    ASM-10. The total is read back from the
+    database rather than recomputed in Java, so
+    the receipt cannot disagree with what was
+    stored. The discount applies to the treatment
+    subtotal only, never to the consultation fee.
+  end note
+
+  Facade -> Ctrl -- : BillDTO(consultationFee 3,000.00,\ntreatmentSubtotal 28,000.00,\ndiscount 2,800.00 "Senior citizen 10%",\ntotalPayable 28,200.00)
   Ctrl --> Proxy -- : **201 Created** { BillDTO }
   return BillDTO
-  UI -> User : display bill summary
+  UI -> User : display the receipt
 
-  opt#Gold #F5FBFA staff chooses to print  -  extend UC-18
-    User -> UI : click Print Receipt
-    UI -> Proxy ++ : printReceipt("BIL-2026-000098")
-    Proxy -> Ctrl ++ : **GET /api/bills/BIL-2026-000098/receipt**
-    Ctrl --> Proxy -- : **200 OK** application/pdf
-    return byte[]
-    UI -> User : receipt sent to printer
+  opt#Gold #F5FBFA staff chooses to print  -  FR-19
+    User -> UI : Ctrl+P
+    UI -> UI : @media print in app.css hides the\nnavigation, sidebar and buttons
+    note right of UI
+      No PDF is generated on the server. The
+      receipt is laid out in the browser and the
+      print stylesheet strips everything that is
+      not the receipt - fewer moving parts, and
+      the printed page is exactly what was shown.
+    end note
+    UI -> User : receipt sent to the printer
   end
 
   UI -> User -- : done

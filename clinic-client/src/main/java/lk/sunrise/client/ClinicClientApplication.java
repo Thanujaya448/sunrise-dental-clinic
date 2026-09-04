@@ -11,6 +11,8 @@ import javax.swing.*;
  * A separate process from the REST service, started independently and
  * communicating only over HTTP. That separation is what makes the system
  * distributed rather than layered.
+ *
+ * @author Thanujaya Hasaranga Perera (st20374257)
  */
 public final class ClinicClientApplication {
 

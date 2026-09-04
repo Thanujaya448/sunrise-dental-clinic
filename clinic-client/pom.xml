@@ -11,6 +11,14 @@
     <name>Sunrise Dental Clinic Desktop Client</name>
     <description>CIS6003 WRIT1 - presentation tier (Java Swing)</description>
 
+
+    <developers>
+        <developer>
+            <name>Thanujaya Hasaranga Perera</name>
+            <id>st20374257</id>
+        </developer>
+    </developers>
+
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>

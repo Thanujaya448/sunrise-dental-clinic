@@ -2,6 +2,8 @@
 
 CIS6003 Advanced Programming · WRIT1 · Cardiff Metropolitan University / ICBT
 
+**Author:** Thanujaya Hasaranga Perera  ·  **Registration number:** st20374257
+
 A three-tier distributed system replacing the paper diary at a busy dental
 clinic. The scenario names four failures of the manual process — double
 bookings, lost patient records, long waiting times and billing errors — and

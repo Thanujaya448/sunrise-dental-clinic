@@ -5,7 +5,8 @@
 --
 --  Target      : MySQL 8.0 (InnoDB, utf8mb4)
 --  Normal form : 3NF - justified in the report, section "Database design"
---  Author      : <your name / student ID>
+--  Author      : Thanujaya Hasaranga Perera
+--  Reg. number : st20374257
 -- =====================================================================
 
 DROP DATABASE IF EXISTS sunrise_clinic;

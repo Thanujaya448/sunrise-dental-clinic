@@ -193,10 +193,21 @@ class AuthenticationServiceTest {
         @Test
         @DisplayName("a token expires once the idle window has passed")
         void tokenExpires() {
-            // SESSION_MINUTES is read per login, so a zero-minute window makes
-            // the token expire immediately - the clock is not mocked, the
-            // configuration is changed, which is what the service reads anyway.
-            repository.setting("SESSION_MINUTES", "0");
+            // SESSION_MINUTES is read fresh on every login, so the window can be
+            // set to a value that has ALREADY elapsed. The token is then stamped
+            // one minute in the past and is unambiguously expired by the time it
+            // is used.
+            //
+            // A zero-minute window was tried first and proved FLAKY: it stamps
+            // the expiry at exactly "now", and whether the check then sees it as
+            // past depends on how fine the platform clock is. On Linux
+            // (nanosecond resolution) the test passed; on Windows, where
+            // LocalDateTime.now() can return the same value twice in a row, it
+            // intermittently failed. A test whose result depends on clock
+            // granularity is worse than no test, because it teaches the team to
+            // ignore red builds. Using an already-elapsed window removes the
+            // race entirely rather than papering over it with a sleep.
+            repository.setting("SESSION_MINUTES", "-1");
             String token = service.login("reception1", PASSWORD).token();
 
             SessionExpiredException ex = assertThrows(SessionExpiredException.class,

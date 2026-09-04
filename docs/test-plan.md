@@ -1,7 +1,7 @@
 # Sunrise Dental Clinic — Test Plan and Traceability Matrix
 
 **CIS6003 Advanced Programming — WRIT1, Task C**
-Author: *<your name / student ID>*
+Author: Thanujaya Hasaranga Perera  |  Registration number: st20374257
 
 ---
 
@@ -139,7 +139,7 @@ summary page into `docs/evidence/`.
 | UT-AUTH-10 | FR-05 | `Refusal.deactivatedAccountIsRefused` | Inactive account | Generic authentication failure |
 | UT-AUTH-11 | FR-04 | `Sessions.tokenResolvesToSession` | Fresh token | Resolves to the correct username and staff ID |
 | UT-AUTH-12 | FR-04 | `Sessions.rejectsMissingAndUnknownTokens` | `null`, blank, forged UUID | `SessionExpiredException` in all three cases |
-| UT-AUTH-13 | FR-04 | `Sessions.tokenExpires` | `SESSION_MINUTES = 0` | `SessionExpiredException`, message says "expired" |
+| UT-AUTH-13 | FR-04 | `Sessions.tokenExpires` | `SESSION_MINUTES = -1`, i.e. a window that has already elapsed | `SessionExpiredException`, message says "expired" |
 | UT-AUTH-14 | FR-04 | `Sessions.logoutInvalidatesToken` | Sign out, then reuse the token | Refused; `LOGOUT` written to the audit trail |
 | UT-AUTH-15 | FR-26 | `Sessions.logoutWithoutTokenDoesNotThrow` | `logout(null)` | Returns quietly — a safe exit never crashes |
 | UT-AUTH-16 | FR-04 | `Sessions.tokensAreUnique` | Two different sign-ins | Two different tokens |
@@ -290,18 +290,23 @@ Two things matter more:
 2. **Where the uncovered lines are.** They are concentrated in exactly the
    places that *should* be uncovered by unit tests.
 
-Measured run, `mvn -B verify`:
+Measured run, `mvn -B verify`. **Note on which metric is quoted:** the table
+below reports **line** coverage, taken from `jacoco.csv`. The first `Cov.`
+column on JaCoCo's own HTML page is **instruction** coverage, which is a
+slightly different number for the same code — `pattern`, for example, is 65% by
+instruction and 69% by line. Both are given here so the figures in this document
+and the figures in the screenshot can be reconciled.
 
-| Package | Line coverage | Branch coverage | Reading |
-|---|---:|---:|---|
-| `lk.sunrise.clinic.service` | **87.2%** | **91.3%** | The business logic. This is the figure that matters, and it is the highest in the project. |
-| `lk.sunrise.clinic.pattern` | 69.0% | **94.4%** | Every discount *decision* is covered. The uncovered lines are `NotificationObserver` and `AuditLogObserver` bodies — logging, not logic. |
-| `lk.sunrise.clinic.exception` | 100% | n/a | Every domain exception is thrown by a test — no dead exception types. |
-| `lk.sunrise.clinic.domain` | 45.2% | 77.3% | `Appointment.overlapsWith()` is fully covered; the shortfall is unused accessors on `Patient` and `TreatmentType`. Line coverage penalises getters; branch coverage shows the rule itself is proved. |
-| `lk.sunrise.clinic.dto` | 63.6% | n/a | Java records — generated accessors. |
-| `lk.sunrise.clinic.repository` | 6.7% | 20.0% | **Deliberately low.** This layer is SQL. Executing it in a unit test would prove only that JDBC works; it is proved instead against a real MySQL 8 server in section 6. |
-| `lk.sunrise.clinic.api` | 0.0% | 0.0% | **Deliberately zero.** Controllers delegate and do not decide. Covering them would test Spring's request mapping, not the clinic's rules; they are proved by the manual end-to-end tests in section 7. |
-| **Overall** | **47.5%** | **73.8%** | Dominated by the two layers that are intentionally untested here. |
+| Package | Line cov. | Instruction cov. | Branch cov. | Reading |
+|---|---:|---:|---:|---|
+| `lk.sunrise.clinic.service` | **87.2%** | 87% | **91.3%** | The business logic. This is the figure that matters, and it is the highest in the project. |
+| `lk.sunrise.clinic.pattern` | 69.0% | 65% | **94.4%** | Every discount *decision* is covered. The uncovered lines are `NotificationObserver` and `AuditLogObserver` bodies — logging, not logic. |
+| `lk.sunrise.clinic.exception` | 100% | 100% | n/a | Every domain exception is thrown by a test — no dead exception types. |
+| `lk.sunrise.clinic.domain` | 45.2% | 55% | 77.3% | `Appointment.overlapsWith()` is fully covered; the shortfall is unused accessors on `Patient` and `TreatmentType`. Line coverage penalises getters; branch coverage shows the rule itself is proved. |
+| `lk.sunrise.clinic.dto` | 63.6% | 79% | n/a | Java records — generated accessors. |
+| `lk.sunrise.clinic.repository` | 6.7% | 5% | 20.0% | **Deliberately low.** This layer is SQL. Executing it in a unit test would prove only that JDBC works; it is proved instead against a real MySQL 8 server in section 6. |
+| `lk.sunrise.clinic.api` | 0.0% | 0% | 0.0% | **Deliberately zero.** Controllers delegate and do not decide. Covering them would test Spring's request mapping, not the clinic's rules; they are proved by the manual end-to-end tests in section 7. |
+| **Overall** | **47.5%** | 47% | **73.8%** | Dominated by the two layers that are intentionally untested here. |
 
 Stating the gap and defending it is worth more than raising the headline figure
 by adding tests that assert nothing. If the number needed to rise, the honest
@@ -383,6 +388,7 @@ tests do something than any coverage figure.
 | 3 | Browser rendering | The sign-in screen rendered on top of the whole application: `.login-shell { display: grid }` overrode the `hidden` attribute | `[hidden] { display: none !important; }` — caught only by opening the page, never by reading the code |
 | 4 | Browser rendering, dark mode | Toast messages were unreadable: `background: var(--ink)` inverts to near-white behind white text | Dedicated `--toast-bg` / `--toast-fg` tokens defined per theme |
 | 5 | `AppointmentServiceTest` | The buffer boundary case was first written at 09:35, which is not on the 15-minute grain, so it failed validation before ever reaching the clash rule — the test was not testing what it claimed | Boundary moved to the adjacent legal slots, 09:30 (refused) and 09:15 (accepted) |
+| 6 | `AuthenticationServiceTest` on Windows | **A flaky test.** `tokenExpires` set the session window to zero minutes, stamping the expiry at exactly "now". Whether the subsequent check saw that as past depended on the platform clock's resolution: it passed consistently on Linux, but on Windows, where `LocalDateTime.now()` can return the same value on two consecutive calls, it failed intermittently. The suite was green on one operating system and red on another for the same commit | The window is now set to a value that has *already* elapsed (`-1`), so the token is stamped a minute in the past and the race cannot occur. A `Thread.sleep` was rejected: it would have hidden the race behind a delay rather than removing it, and slow tests are the first thing a team stops running |
 
 > Add any defect your own testing turns up. A defect you found and fixed is
 > worth more marks than a suite that never went red.

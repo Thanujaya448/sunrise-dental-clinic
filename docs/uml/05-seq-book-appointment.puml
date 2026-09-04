@@ -5,7 +5,8 @@
 '  Covers FR-07 to FR-12, FR-20, FR-24, NFR-04, NFR-05
 '  Shows: the HTTP hop, the Observer pattern firing, and the
 '         database trigger acting as the final clash defence.
-'  Author: Thanujaya Hasaranga
+'  Author      : Thanujaya Hasaranga Perera
+'  Reg. number : st20374257
 ' =====================================================================
 
 skinparam backgroundColor #FFFFFF
@@ -32,14 +33,13 @@ actor "Receptionist" as User
 
 box "TIER 1 - Swing client" #FCFEFD
   participant "BookAppointmentFrame\n<<boundary>>" as UI
-  participant "AppointmentServiceProxy\n<<Proxy>>" as Proxy
+  participant "ClinicServiceProxy\n<<Proxy>>" as Proxy
 end box
 
 box "TIER 2 - Spring Boot REST service" #FCFEFD
-  participant "AppointmentController\n<<control>>" as Ctrl
+  participant "ClinicController\n<<control>>" as Ctrl
   participant "AppointmentService" as Svc
-  participant "DentistSchedule" as Sched
-  participant "AppointmentRepository\n<<Repository>>" as Repo
+  participant "ClinicRepository\n<<Repository>>" as Repo
   participant "AppointmentObserver\n<<Observer>>" as Obs
 end box
 
@@ -61,8 +61,11 @@ note over Proxy, Ctrl #E0F0ED
   HTTP boundary - tier 1 to tier 2
 end note
 
-Ctrl -> Ctrl : AppointmentMapper.toEntity(dto)
-Ctrl -> Svc ++ : book(request)
+Ctrl -> Ctrl : auth.requireRole(token, RECEPTIONIST, ADMINISTRATOR)
+note right of Ctrl
+  FR-05. Every endpoint opens with this.
+end note
+Ctrl -> Svc ++ : book(BookingRequest, staffId)
 
 Svc -> Repo ++ : findTreatmentByCode(code)
 return TreatmentType(price, durationMinutes)
@@ -75,31 +78,46 @@ note right of Svc
   meaningless.
 end note
 
-Svc -> Repo ++ : findClashes(dentistId, date,\nstartTime, endTime, buffer)
-Repo -> DB ++ : SELECT * FROM appointment\nWHERE dentist_id = ? AND appt_date = ?\nAND status = 'BOOKED'\nAND start_time < ? AND end_time > ?
-return clashing rows
-return List<Appointment>
+Svc -> Repo ++ : findDayBookings(dentistId, date)
+Repo -> DB ++ : SELECT start_time, end_time, status\nFROM appointment WHERE dentist_id = ?\nAND appointment_date = ?
+return that day's rows
+return List<Map<String, Object>>
+
+Svc -> Svc : clashes(rows, start, end, buffer)
+note right of Svc
+  ASM-08. Ranges widened by the 10-minute
+  turnaround buffer must not intersect. The
+  same arithmetic as the database trigger.
+end note
 
 alt#Gold #FDF6EE clash found  -  extend UC-09
 
-  Svc -> Sched ++ : nextFreeSlots(durationMinutes, 3)
-  Sched -> Sched : scan the working day\naround existing bookings
-  return [11:40, 13:00, 14:30]
+  Svc -> Svc : nextFreeSlots(duration, buffer, 3)
+  note right of Svc
+    Scans the working day on the 15-minute
+    grid and keeps the first three slots that
+    clear every booking plus its buffer.
+  end note
 
   Svc -> Ctrl : SlotUnavailableException(suggestions)
-  Ctrl --> Proxy : **409 Conflict**\n{ message, suggestedSlots[] }
+  Ctrl --> Proxy : **409 Conflict**\n{ message, suggestedSlots[] }\nmapped by GlobalExceptionHandler
   Proxy --> UI : SlotUnavailableException
-  UI -> User : "Dr. Perera is booked 10:00-11:30.\nNext free slots: 11:40, 13:00, 14:30"
+  UI -> User : "That dentist is already booked at 14:45.\nNext free slots: 08:00, 08:15, 08:30"
   note right of UI #FDF6EE
     FR-11 / ASM-09. Refusing the booking solves
     double booking; **offering an alternative**
     is what addresses the clinic's stated
     problem of long waiting times.
+    ..
+    LIMITATION: the current implementation scans
+    from opening time, so it returns the day's
+    EARLIEST free slots rather than those nearest
+    the time requested. Recorded as future work.
   end note
 
 else #F5FBFA slot is free
 
-  Svc -> Repo ++ : save(appointment)
+  Svc -> Repo ++ : insertAppointment(patientNo, dentistId,\ndate, start, end, notes, staffId,\ntreatmentId, unitPrice)
   Repo -> DB ++ : INSERT INTO appointment (...)\nVALUES (...)
 
   DB -> DB : trg_appointment_no_overlap\nBEFORE INSERT
@@ -124,9 +142,13 @@ else #F5FBFA slot is free
 
     DB -> DB : appointment_no generated\nas APT-2026-000147
     return generated appointment_no
-    return persisted Appointment
+    return appointment_no
 
-    Svc ->> Obs ++ : onAppointmentCreated(appointment)
+    Svc -> Repo ++ : findAppointmentByNo(no)
+    Repo -> DB : SELECT ... FROM vw_appointment_detail
+    return AppointmentDTO
+
+    Svc ->> Obs ++ : onAppointmentCreated(no, patientName,\ncontact, dentistName, whenText)
     note right of Obs #E0F0ED
       Observer pattern. AppointmentService does not
       know that notifications or auditing exist -
@@ -134,7 +156,7 @@ else #F5FBFA slot is free
       listeners can be added without changing it.
     end note
     Obs ->> DB : INSERT INTO audit_entry (...)
-    Obs ->> Obs : NotificationObserver\n.sendConfirmation()
+    Obs ->> Obs : NotificationObserver logs the\nmessage it WOULD send
     note right of Obs
       FR-20. Stubbed in this implementation:
       the notifier logs the message it would
@@ -142,9 +164,8 @@ else #F5FBFA slot is free
     end note
     deactivate Obs
 
-    return Appointment
-    Ctrl -> Ctrl : AppointmentMapper.toDTO(appointment)
-    Ctrl --> Proxy -- : **201 Created**\n{ appointmentNo, dentist,\n  date, startTime, endTime }
+    return AppointmentDTO
+        Ctrl --> Proxy -- : **201 Created**\n{ appointmentNo, dentist,\n  date, startTime, endTime }
     return AppointmentDTO
     UI -> User -- : "Appointment booked.\nNumber: APT-2026-000147"
 
