@@ -5,7 +5,8 @@
 '  Covers FR-07 to FR-12, FR-20, FR-24, NFR-04, NFR-05
 '  Shows: the HTTP hop, the Observer pattern firing, and the
 '         database trigger acting as the final clash defence.
-'  Author: <your name / student ID>
+'  Author      : Thanujaya Hasaranga Perera
+'  Reg. number : st20374257
 ' =====================================================================
 
 skinparam backgroundColor #FFFFFF

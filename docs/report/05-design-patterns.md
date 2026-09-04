@@ -1,6 +1,6 @@
 # 5. Design patterns applied and evaluated
 
-*(~1,000 words — Task B)*
+*(~1,040 words — Task B)*
 
 Patterns were selected because a specific force in this system called for one,
 not to satisfy a checklist. Gamma *et al.* (1994) warn in their own
@@ -84,11 +84,10 @@ behaviour by construction.
 
 ## 5.4 Proxy, Singleton, Repository and Adapter
 
-**Proxy** *(structural)* appears in both clients. `ClinicServiceProxy` in the
-Swing client and `request()` in the browser expose the service as though it
-were local, hiding the HTTP call, the `Authorization` header and the mapping of
-status codes to meaning. The client code reads as method calls, which is the
-point of the pattern.
+**Proxy** *(structural)* appears in both clients. `ClinicServiceProxy` and the
+browser's `request()` expose the service as though it were local, hiding the
+HTTP call, the `Authorization` header and the mapping of status codes to
+meaning, so client code reads as method calls.
 
 **Singleton** *(creational)* holds the session in each client — `SessionHolder`
 in Swing, one module-level `Session` object in JavaScript. Singleton is
@@ -98,13 +97,11 @@ single client process holding a single signed-in user, and the alternative —
 threading the token through every constructor — would obscure the design for no
 practical gain. It is not used anywhere in the business tier.
 
-**Repository and DAO** separate the service layer from SQL. `ClinicRepository`
-is an interface; `JdbcClinicRepository` implements it. The measurable benefit
-is in §6: the whole service layer runs in tests against a hand-written
-in-memory implementation with no MySQL, no JDBC driver and no Spring context.
-One interface was used rather than five. For a system of twelve tables that
-keeps the wiring visible; Fowler (2002) would split it per aggregate as the
-system grew, and the design should be revisited at that point.
+**Repository and DAO** separate the service layer from SQL. The measurable
+benefit is in §6: the whole service layer runs in tests against an in-memory
+implementation with no MySQL, no JDBC driver and no Spring context. One
+interface was used rather than five, which keeps the wiring visible at twelve
+tables; Fowler (2002) would split it per aggregate as the system grew.
 
 **Adapter / DTO** *(structural)*. The `Dtos` records are the API contract and
 deliberately do not mirror the tables — no client ever learns a primary key or

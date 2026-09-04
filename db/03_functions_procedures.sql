@@ -4,7 +4,8 @@
 --
 --  fn_treatment_subtotal   set arithmetic, done where the data lives
 --  sp_generate_bill        the whole bill written in one transaction
---  Author: <your name / student ID>
+--  Author      : Thanujaya Hasaranga Perera
+--  Reg. number : st20374257
 -- =====================================================================
 
 USE sunrise_clinic;

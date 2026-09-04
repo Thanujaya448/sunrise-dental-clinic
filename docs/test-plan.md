@@ -1,7 +1,7 @@
 # Sunrise Dental Clinic — Test Plan and Traceability Matrix
 
 **CIS6003 Advanced Programming — WRIT1, Task C**
-Author: *<your name / student ID>*
+Author: Thanujaya Hasaranga Perera  |  Registration number: st20374257
 
 ---
 

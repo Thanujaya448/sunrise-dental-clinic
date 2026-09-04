@@ -23,8 +23,8 @@ public class Patient {
     private boolean staffFamily;
     private int previousCompletedVisits;
 
+    /** No-argument constructor for frameworks that build the object reflectively. */
     protected Patient() {
-        // required by JPA later
     }
 
     public Patient(String fullName, LocalDate dateOfBirth,

@@ -11,7 +11,8 @@
 --  FOLLOWS is used so the numbering trigger always runs before the
 --  overlap check on the same INSERT. Splitting them keeps each trigger
 --  single-purpose and testable.
---  Author: <your name / student ID>
+--  Author      : Thanujaya Hasaranga Perera
+--  Reg. number : st20374257
 -- =====================================================================
 
 USE sunrise_clinic;

@@ -8,7 +8,8 @@
 '  classes. The Swing client is shown; the browser client follows the
 '  identical sequence through request() in app.js, which is the point
 '  of putting the rules behind one API.
-'  Author: <your name / student ID>
+'  Author      : Thanujaya Hasaranga Perera
+'  Reg. number : st20374257
 ' =====================================================================
 
 skinparam backgroundColor #FFFFFF

@@ -13,8 +13,9 @@ import java.util.Objects;
  * entity keeps the service thin and makes the rule unit-testable without
  * a Spring context or a database.
  *
- * JPA mapping is added in the next TDD cycle, when the repository test
- * first requires it.
+ * The entity carries no persistence annotations. Mapping is done by hand in
+ * JdbcClinicRepository: the report explains why Spring JDBC was chosen over an
+ * ORM, given that several business rules live in the database itself.
  */
 public class Appointment {
 
@@ -27,8 +28,8 @@ public class Appointment {
     private LocalTime endTime;
     private AppointmentStatus status = AppointmentStatus.BOOKED;
 
+    /** No-argument constructor for frameworks that build the object reflectively. */
     protected Appointment() {
-        // required by JPA later
     }
 
     public Appointment(Long dentistId, LocalDate appointmentDate,

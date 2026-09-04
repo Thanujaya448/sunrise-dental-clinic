@@ -6,7 +6,10 @@
 '  A focused companion to the full design class diagram. It shows only
 '  the collaborations that carry a pattern, so the argument in the
 '  report can be read off one page. Every class exists in the
-'  repository.                             Author: <your name / student ID>
+'  repository.
+'
+'  Author      : Thanujaya Hasaranga Perera
+'  Reg. number : st20374257
 ' =====================================================================
 
 skinparam backgroundColor #FFFFFF

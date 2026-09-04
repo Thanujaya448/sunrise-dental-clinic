@@ -8,7 +8,9 @@
 '  earlier design intent. Every class shown exists in the repository
 '  under the package given. Where the built design differs from the
 '  first draft, the report explains why in section 5.
-'                                          Author: <your name / student ID>
+'
+'  Author      : Thanujaya Hasaranga Perera
+'  Reg. number : st20374257
 ' =====================================================================
 
 skinparam backgroundColor #FFFFFF

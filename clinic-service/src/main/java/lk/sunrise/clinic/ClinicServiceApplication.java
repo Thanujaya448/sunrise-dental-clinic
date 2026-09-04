@@ -9,6 +9,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * This is a separate operating-system process from the Swing client.
  * The client reaches it only over HTTP, which is what makes the system
  * distributed rather than merely layered (NFR-01).
+ *
+ * @author Thanujaya Hasaranga Perera (st20374257)
  */
 @SpringBootApplication
 public class ClinicServiceApplication {

@@ -17,6 +17,14 @@
     <name>Sunrise Dental Clinic Service</name>
     <description>CIS6003 WRIT1 - business tier (REST web service)</description>
 
+
+    <developers>
+        <developer>
+            <name>Thanujaya Hasaranga Perera</name>
+            <id>st20374257</id>
+        </developer>
+    </developers>
+
     <properties>
         <java.version>17</java.version>
         <!-- NetBeans' Run action executes ${start-class}; Spring Boot's parent
