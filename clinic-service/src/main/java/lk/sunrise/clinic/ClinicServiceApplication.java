@@ -2,6 +2,7 @@ package lk.sunrise.clinic;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 /**
  * Entry point for TIER 2 of the Sunrise Dental Clinic system.
@@ -13,6 +14,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @author Thanujaya Hasaranga Perera (st20374257)
  */
 @SpringBootApplication
+@EnableAsync   // FR-20: confirmation emails are sent off the request thread
 public class ClinicServiceApplication {
 
     public static void main(String[] args) {

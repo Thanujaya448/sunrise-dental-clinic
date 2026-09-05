@@ -161,12 +161,18 @@ StaffUser <|-- Receptionist
 StaffUser <|-- Dentist
 StaffUser <|-- Administrator
 
-' ---- associations with multiplicity ---------------------------------
-Patient   "1"    -- "0..*" Appointment  : books >
-Dentist   "1"    -- "0..*" Appointment  : treats >
-Appointment "0..*" -- "1..*" TreatmentType : consists of >
-Appointment "1"  -- "0..1" Bill          : billed by >
-StaffUser "1"    -- "0..*" Appointment  : created by >
+' ---- associations: multiplicity AND navigability --------------------
+'  The arrowhead shows NAVIGABILITY - which object can reach which. It is
+'  not decoration: an Appointment holds a reference to its Patient, so the
+'  system can answer "whose appointment is this?" directly, while
+'  "which appointments does this patient have?" is a query. Drawing every
+'  association bidirectional would claim references the design does not
+'  hold, and would licence a circular object graph nothing needs.
+Appointment "0..*" --> "1"    Patient       : booked for >
+Appointment "0..*" --> "1"    Dentist       : treated by >
+Appointment "0..*" --> "1..*" TreatmentType : consists of >
+Appointment "0..*" --> "1"    StaffUser     : created by >
+Bill        "0..1" --> "1"    Appointment   : bills >
 
 ' ---- COMPOSITION (filled diamond) -----------------------------------
 '  A BillLine has no identity or meaning outside its Bill. Deleting the
@@ -177,14 +183,15 @@ Bill "1" *-- "1..*" BillLine : contains >
 '  A DentistSchedule is a day-view that groups existing Appointments.
 '  Discarding the schedule object does NOT delete the appointments -
 '  they belong to the Patient and the Dentist, not to the schedule.
-DentistSchedule "1" o-- "0..*" Appointment : groups >
-Dentist "1" -- "0..*" DentistSchedule : works >
+DentistSchedule "1" o--> "0..*" Appointment : groups >
+Dentist         "1" --> "0..*" DentistSchedule : works >
 
 
 legend right
   |= Symbol |= Relationship |= Why it is used here |
   | ——▷ | Generalisation | Receptionist / Dentist / Administrator **are** StaffUsers |
   | ——— | Association | Independent objects that know about each other,\n labelled with multiplicity at both ends |
+  | ——> | **Navigability** | The arrow shows which object holds the reference.\n Appointment —> Patient: an appointment can reach its\n patient directly; the reverse is a query, not a field |
   | ——◆ | **Composition** | Bill ◆ BillLine - a line has no meaning without its\n bill and is destroyed with it (owned lifetime) |
   | ——◇ | **Aggregation** | DentistSchedule ◇ Appointment - the schedule groups\n appointments that exist independently of it |
 endlegend

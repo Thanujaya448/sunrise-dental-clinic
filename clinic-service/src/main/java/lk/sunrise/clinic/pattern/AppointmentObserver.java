@@ -10,8 +10,8 @@ package lk.sunrise.clinic.pattern;
 public interface AppointmentObserver {
 
     void onAppointmentCreated(String appointmentNo, String patientName,
-                              String contactNumber, String dentistName,
-                              String whenText);
+                              String contactNumber, String patientEmail,
+                              String dentistName, String whenText);
 
     void onAppointmentCancelled(String appointmentNo, String reason);
 }
