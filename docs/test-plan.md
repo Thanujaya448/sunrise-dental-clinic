@@ -205,9 +205,9 @@ summary page into `docs/evidence/`.
 
 | Test ID | Requirement | Coverage |
 |---|---|---|
-| UT-ADM-01…10 | FR-21 | Treatments: list includes withdrawn ones; create with code normalisation; duplicate code refused; standing price updated and persisted; withdraw without delete; unknown code 404; negative price refused; duration boundaries 5 and 480 accepted, 4 and 481 refused; blank code or name refused |
-| UT-ADM-11…18 | FR-22, FR-02, FR-24 | Staff: receptionist created with a BCrypt hash; creating a dentist writes the dentist row too; dentist without registration number or fee refused; duplicate username refused; password under 8 characters refused; unknown role refused; creation audited; account deactivated rather than deleted |
-| UT-ADM-19…21 | FR-03, FR-24 | Unlock: the lock **and** the counter are cleared; the unlock is audited; unlocking an unknown account is a 404 |
+| UT-ADM-01…09 | FR-21 | Treatments: list includes withdrawn ones; create with code normalisation; duplicate code refused; standing price updated and persisted; withdraw without delete; unknown code 404; negative price refused; duration boundaries 5 and 480 accepted, 4 and 481 refused; blank code or name refused |
+| UT-ADM-10…17 | FR-22, FR-02, FR-24 | Staff: receptionist created with a BCrypt hash; creating a dentist writes the dentist row too; dentist without registration number or fee refused; duplicate username refused; password under 8 characters refused; unknown role refused; creation audited; account deactivated rather than deleted |
+| UT-ADM-18…20 | FR-03, FR-24 | Unlock: the lock **and** the counter are cleared; the unlock is audited; unlocking an unknown account is a 404 |
 
 ### 3.5 Domain rules — `AppointmentOverlapTest` (12 tests) and `DiscountStrategyTest` (18 tests)
 
@@ -235,7 +235,7 @@ by the data tier, not by JUnit — stated rather than hidden.
 |---|---|---|---|---|
 | FR-01 | Staff log in | UC-01 | `AuthenticationService` | UT-AUTH-01 |
 | FR-02 | Passwords stored hashed | UC-01 | `AuthenticationService` (BCrypt) | UT-AUTH-02, DB-08 |
-| FR-03 | Lock out after 5 failures | UC-01 | `AuthenticationService` | UT-AUTH-04, 06, 08, 09 |
+| FR-03 | Lock out after 5 failures, Administrator unlocks | UC-01, UC-18 | `AuthenticationService`, `AdministrationService.unlockAccount()` | UT-AUTH-04, 06, 08, 09; UT-ADM-18…20 |
 | FR-04 | Session with idle timeout | UC-02 | `AuthenticationService` | UT-AUTH-11…16 |
 | FR-05 | Role-restricted functions | UC-03 | `AuthenticationService`, `ClinicController` | UT-AUTH-10, 17…20 |
 | FR-06 | Register a new patient | UC-05 | `JdbcClinicRepository`, `patient` table | DB-01, MAN-03 |
@@ -253,8 +253,8 @@ by the data tier, not by JUnit — stated rather than hidden.
 | FR-18 | Bill only completed appointments | UC-14 | `BillingFacade`, `sp_generate_bill` | UT-BILL-02…04, DB-06 |
 | FR-19 | Print a receipt | UC-15 | `app.css` `@media print`, `BillingFrame` | UT-BILL-12, 13, MAN-07 |
 | FR-20 | Appointment notifications | UC-08 | `NotificationObserver` (**stub — logs what it would send**) | UT-APPT-03, 04 |
-| FR-21 | Maintain treatments and prices | UC-16 | `TreatmentTypeRepository`, `treatment_type` | UT-APPT-10, MAN-08 |
-| FR-22 | Maintain staff and dentists | UC-17 | `staff`, `dentist` tables | DB-01, MAN-09 |
+| FR-21 | Maintain treatments and prices | UC-16 | `AdministrationService`, `TreatmentTypeRepository`, `treatment_type` | UT-ADM-01…09, UT-APPT-10; MAN-08 |
+| FR-22 | Maintain staff and dentists | UC-17 | `AdministrationService`, `staff`, `dentist` tables | UT-ADM-10…17; DB-01, MAN-09 |
 | FR-23 | Management reports | UC-18 | `ReportService`, 5 views | DB-01, MAN-06 |
 | FR-24 | Audit log | UC-19 | `AuditLogObserver`, `audit_entry` | UT-AUTH-03, 14, UT-APPT-30 |
 | FR-25 | Help screen | UC-20 | Help panel / `HelpFrame` | MAN-10 |

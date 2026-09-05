@@ -14,9 +14,9 @@ referenced by each appointment. Long waiting times suggest refusing a slot is
 half a solution. Billing errors point to prices held in data, not code.
 
 This report describes the three-tier system built to address them — two clients
-over one REST API, a Spring Boot business tier, and a MySQL 8 data tier
-enforcing rules through triggers and a stored procedure — with the alternatives
-rejected at each decision, the testing evidence, and an honest evaluation.
+over one REST API, a Spring Boot business tier, and a MySQL 8 data tier enforcing
+rules through triggers and a stored procedure — with the alternative rejected at
+each decision, the testing evidence, and an honest evaluation.
 
 # 2. Assumptions and derived requirements
 
