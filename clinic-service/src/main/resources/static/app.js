@@ -171,7 +171,16 @@ const api = {
   generateBill: (appointmentNo)      => request('POST', '/bills', { appointmentNo }),
   bill:         (no)                 => request('GET',  `/bills/${encodeURIComponent(no)}`),
   reports:      ()                   => request('GET',  '/reports'),
-  report:       (type)               => request('GET',  `/reports/${type}`)
+  report:       (type)               => request('GET',  `/reports/${type}`),
+
+  // FR-21, FR-22, FR-03 - Administrator only; the server enforces the role
+  adminTreatments: ()        => request('GET',  '/admin/treatments'),
+  addTreatment:    (t)       => request('POST', '/admin/treatments', t),
+  saveTreatment:   (code, t) => request('PUT',  `/admin/treatments/${encodeURIComponent(code)}`, t),
+  adminStaff:      ()        => request('GET',  '/admin/staff'),
+  addStaff:        (st)      => request('POST', '/admin/staff', st),
+  unlockStaff:     (u)       => request('POST', `/admin/staff/${encodeURIComponent(u)}/unlock`, {}),
+  setStaffActive:  (u, on)   => request('POST', `/admin/staff/${encodeURIComponent(u)}/active?active=${on}`, {})
 };
 
 /* =====================================================================
@@ -237,6 +246,7 @@ const TABS = [
   { id: 'search',  label: 'Appointments',   icon: 'i-search',  roles: ['RECEPTIONIST', 'DENTIST', 'ADMINISTRATOR'] },
   { id: 'billing', label: 'Billing',        icon: 'i-billing', roles: ['RECEPTIONIST', 'ADMINISTRATOR'] },
   { id: 'reports', label: 'Reports',        icon: 'i-reports', roles: ['ADMINISTRATOR'] },
+  { id: 'admin',   label: 'Administration', icon: 'i-reports', roles: ['ADMINISTRATOR'] },
   { id: 'help',    label: 'Help',           icon: 'i-help',    roles: ['RECEPTIONIST', 'DENTIST', 'ADMINISTRATOR'] }
 ];
 
@@ -275,6 +285,7 @@ function showPanel(id) {
   const sub = $('#greeting-sub');
   if (sub) sub.textContent = PANEL_SUB[id] || '';
   if (id === 'reports' && !$('#report-list').children.length) loadReports();
+  if (id === 'admin') loadAdmin();
 }
 
 /* =====================================================================
@@ -288,11 +299,179 @@ function showLogin(message) {
   stopSessionClock();
 }
 
+/* =====================================================================
+   Administration - FR-21 treatments and prices, FR-22 staff and dentists,
+   and FR-03's other half: unlocking an account the system locked.
+
+   Every call here is refused by the server for any role but ADMINISTRATOR.
+   Hiding the tab is convenience; requireRole() on each endpoint is the
+   control, which 18-forbidden.png demonstrates.
+   ===================================================================== */
+async function loadAdmin() {
+  await Promise.all([loadAdminTreatments(), loadAdminStaff()]);
+}
+
+async function loadAdminTreatments() {
+  const body = $('#admin-treatments tbody');
+  body.replaceChildren();
+  try {
+    const rows = await api.adminTreatments();
+    rows.forEach(t => {
+      const tr = el('tr');
+      tr.appendChild(el('td', 'mono', t.code));
+      tr.appendChild(el('td', null, t.name));
+      tr.appendChild(el('td', 'num', money(t.price)));
+      tr.appendChild(el('td', 'num', String(t.durationMinutes)));
+      tr.appendChild(el('td', null, t.active ? 'Available' : 'Withdrawn'));
+      const actions = el('td');
+      const edit = el('button', 'btn tiny', 'Edit');
+      edit.type = 'button';
+      edit.addEventListener('click', () => openTreatment(t));
+      actions.appendChild(edit);
+      tr.appendChild(actions);
+      body.appendChild(tr);
+    });
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function loadAdminStaff() {
+  const body = $('#admin-staff tbody');
+  body.replaceChildren();
+  try {
+    const rows = await api.adminStaff();
+    rows.forEach(r => {
+      const tr = el('tr');
+      tr.appendChild(el('td', 'mono', r.username));
+      tr.appendChild(el('td', null, r.full_name));
+      tr.appendChild(el('td', null, titleCase(r.role)));
+      tr.appendChild(el('td', null,
+        r.locked ? 'Locked' : (r.active ? 'Active' : 'Inactive')));
+
+      const actions = el('td');
+      if (r.locked) {
+        const b = el('button', 'btn tiny', 'Unlock');
+        b.type = 'button';
+        b.addEventListener('click', () => runAdmin(
+          () => api.unlockStaff(r.username), `${r.username} unlocked`));
+        actions.appendChild(b);
+      }
+      const toggle = el('button', 'btn tiny ghost', r.active ? 'Deactivate' : 'Reactivate');
+      toggle.type = 'button';
+      toggle.addEventListener('click', () => runAdmin(
+        () => api.setStaffActive(r.username, !r.active),
+        `${r.username} ${r.active ? 'deactivated' : 'reactivated'}`));
+      actions.appendChild(toggle);
+      tr.appendChild(actions);
+      body.appendChild(tr);
+    });
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function runAdmin(action, okMessage) {
+  try {
+    await action();
+    toast(okMessage);
+    loadAdmin();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+let editingCode = null;
+
+function openTreatment(t) {
+  editingCode = t ? t.code : null;
+  $('#dlg-treatment-title').textContent = t ? `Edit ${t.code}` : 'New treatment';
+  $('#t-code').value = t ? t.code : '';
+  $('#t-code').disabled = Boolean(t);
+  $('#t-name').value = t ? t.name : '';
+  $('#t-price').value = t ? t.price : '';
+  $('#t-mins').value = t ? t.durationMinutes : '';
+  $('#t-active').checked = t ? t.active : true;
+  $('#t-error').hidden = true;
+  $('#dlg-treatment').showModal();
+}
+
+function titleCase(s) {
+  return String(s).charAt(0) + String(s).slice(1).toLowerCase();
+}
+
+function wireAdmin() {
+  const tDlg = $('#dlg-treatment');
+  const sDlg = $('#dlg-staff');
+  if (!tDlg || !sDlg) return;
+
+  $('#admin-new-treatment').addEventListener('click', () => openTreatment(null));
+  $('#admin-new-staff').addEventListener('click', () => {
+    ['s-username', 's-name', 's-password', 's-reg', 's-spec', 's-fee']
+      .forEach(id => { $(`#${id}`).value = ''; });
+    $('#s-role').value = 'RECEPTIONIST';
+    $('#s-dentist-fields').hidden = true;
+    $('#s-error').hidden = true;
+    sDlg.showModal();
+  });
+
+  $('#s-role').addEventListener('change', e => {
+    $('#s-dentist-fields').hidden = e.target.value !== 'DENTIST';
+  });
+
+  $$('[data-close]').forEach(b =>
+    b.addEventListener('click', () => b.closest('dialog').close()));
+
+  $('#t-save').addEventListener('click', async () => {
+    const payload = {
+      code: $('#t-code').value.trim(),
+      name: $('#t-name').value.trim(),
+      price: Number($('#t-price').value),
+      durationMinutes: Number($('#t-mins').value),
+      active: $('#t-active').checked
+    };
+    try {
+      if (editingCode) await api.saveTreatment(editingCode, payload);
+      else await api.addTreatment(payload);
+      tDlg.close();
+      toast(editingCode ? `${payload.code} updated` : `${payload.code} added`);
+      loadAdminTreatments();
+    } catch (e) {
+      const p = $('#t-error');
+      p.textContent = e.message;
+      p.hidden = false;
+    }
+  });
+
+  $('#s-save').addEventListener('click', async () => {
+    const payload = {
+      username: $('#s-username').value.trim(),
+      fullName: $('#s-name').value.trim(),
+      password: $('#s-password').value,
+      role: $('#s-role').value,
+      registrationNo: $('#s-reg').value.trim(),
+      specialisation: $('#s-spec').value.trim(),
+      consultationFee: $('#s-fee').value ? Number($('#s-fee').value) : null
+    };
+    try {
+      await api.addStaff(payload);
+      sDlg.close();
+      toast(`${payload.username} created`);
+      loadAdminStaff();
+    } catch (e) {
+      const p = $('#s-error');
+      p.textContent = e.message;
+      p.hidden = false;
+    }
+  });
+}
+
 const PANEL_SUB = {
   book:    'Find the patient, pick a slot, and we will keep the diary clash-free.',
   search:  'Look up one appointment, or see how a whole day is shaping up.',
   billing: 'Produce and print a bill for a visit that has been completed.',
   reports: 'Four questions worth asking about how the clinic is running.',
+  admin:   'Prices, staff accounts, and unlocking anyone the system locked out.',
   help:    'Everything the front desk needs, in plain language.'
 };
 
@@ -832,6 +1011,7 @@ async function runReport(id) {
    Start-up
    ===================================================================== */
 Theme.init();
+wireAdmin();
 
 if (Session.isLive()) {
   enterApp().catch(handle);

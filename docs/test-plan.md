@@ -119,7 +119,7 @@ cd clinic-service
 mvn -B verify
 ```
 
-Measured result: **99 tests run, 0 failures, 0 errors**, JaCoCo report produced
+Measured result: **119 tests run, 0 failures, 0 errors**, JaCoCo report produced
 and the service JAR packaged. Screenshot the Maven output and the JaCoCo
 summary page into `docs/evidence/`.
 
@@ -201,7 +201,15 @@ summary page into `docs/evidence/`.
 | UT-BILL-14 | NFR-04 | `DatabaseRuleSurfaced.translatesDataAccessException` | Stored procedure signals `SQLSTATE 45000` | The procedure's own business message reaches the user, not a stack trace |
 | UT-BILL-15 | NFR-04 | `DatabaseRuleSurfaced.handlesMessagelessFailure` | Failure with no message | Falls back to "The bill could not be generated" |
 
-### 3.4 Domain rules — `AppointmentOverlapTest` (12 tests) and `DiscountStrategyTest` (18 tests)
+### 3.4 Administration — `AdministrationServiceTest` (20 tests)
+
+| Test ID | Requirement | Coverage |
+|---|---|---|
+| UT-ADM-01…10 | FR-21 | Treatments: list includes withdrawn ones; create with code normalisation; duplicate code refused; standing price updated and persisted; withdraw without delete; unknown code 404; negative price refused; duration boundaries 5 and 480 accepted, 4 and 481 refused; blank code or name refused |
+| UT-ADM-11…18 | FR-22, FR-02, FR-24 | Staff: receptionist created with a BCrypt hash; creating a dentist writes the dentist row too; dentist without registration number or fee refused; duplicate username refused; password under 8 characters refused; unknown role refused; creation audited; account deactivated rather than deleted |
+| UT-ADM-19…21 | FR-03, FR-24 | Unlock: the lock **and** the counter are cleared; the unlock is audited; unlocking an unknown account is a 404 |
+
+### 3.5 Domain rules — `AppointmentOverlapTest` (12 tests) and `DiscountStrategyTest` (18 tests)
 
 Both were written **test-first** (section 1.3) and run with no collaborators at
 all — not even a test double.
@@ -392,3 +400,40 @@ tests do something than any coverage figure.
 
 > Add any defect your own testing turns up. A defect you found and fixed is
 > worth more marks than a suite that never went red.
+
+
+## A.9 Use case specifications
+
+Section 3.1 states that authentication is a *precondition* of every use case
+rather than an `<<include>>` on each. These are the specifications in which it
+is recorded. Three are given in full; the remaining eighteen follow the same
+shape and are in the repository.
+
+**UC-01 Log In** · Actor: Staff User · Precondition: the user holds an active,
+unlocked account · Main flow: the user supplies a username and password; the
+system compares the password against the stored BCrypt hash, clears the failure
+counter, issues a token with a twenty-minute idle expiry and writes a LOGIN
+audit entry · Alternate: an unknown username or wrong password returns the same
+generic message and increments the counter; five failures lock the account ·
+Postcondition: a live session exists, or the attempt is recorded ·
+Requirements: FR-01, FR-02, FR-03, FR-04, FR-24.
+
+**UC-07 Book Appointment** · Actor: Receptionist · Preconditions: signed in as
+Receptionist or Administrator; the patient exists; the treatment is active ·
+Main flow: the receptionist selects patient, dentist, treatment, date and start
+time; the system derives the end time from the treatment's duration, checks the
+opening hours and the clash rule, inserts the appointment and publishes the
+event to its observers · Alternate: a clash returns HTTP 409 with the next three
+free slots (UC-09); the database trigger rejects any booking that wins a race
+between the check and the insert · Postcondition: the appointment exists with a
+generated number, the patient has a confirmation email and an audit row exists ·
+Requirements: FR-08 to FR-12, FR-20, FR-24, NFR-05.
+
+**UC-16 Maintain Treatments** · Actor: Administrator · Precondition: signed in
+as Administrator · Main flow: the administrator lists treatments including
+withdrawn ones, and creates one or edits its name, price, duration and
+availability; the system validates the code, price and duration before writing ·
+Alternate: a duplicate code or an out-of-range duration is refused with a
+message naming the rule · Postcondition: the standing price is changed;
+appointments already booked keep the price snapshot taken at booking time ·
+Requirements: FR-21, NFR-04.

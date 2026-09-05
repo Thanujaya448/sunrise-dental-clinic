@@ -4,6 +4,8 @@ import lk.sunrise.clinic.dto.Dtos;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.SimpleJdbcCall;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 import javax.sql.DataSource;
@@ -58,6 +60,51 @@ public class JdbcClinicRepository implements ClinicRepository {
         jdbc.update("UPDATE staff SET failed_attempts = failed_attempts + 1, "
                   + "locked = (failed_attempts + 1 >= ?) WHERE staff_id = ?",
                 Integer.parseInt(readSetting("MAX_LOGIN_FAILS")), staffId);
+    }
+
+    // ---- staff administration (FR-22, FR-03) --------------------------
+
+    @Override
+    public List<Map<String, Object>> findAllStaff() {
+        return jdbc.queryForList(
+                "SELECT s.staff_id, s.username, s.full_name, s.role, s.active, s.locked, "
+              + "       s.failed_attempts, d.registration_no, d.specialisation, d.consultation_fee "
+              + "  FROM staff s LEFT JOIN dentist d ON d.staff_id = s.staff_id "
+              + " ORDER BY s.role, s.full_name");
+    }
+
+    @Override
+    public long insertStaff(String username, String passwordHash, String fullName, String role) {
+        KeyHolder key = new GeneratedKeyHolder();
+        jdbc.update(connection -> {
+            var ps = connection.prepareStatement(
+                    "INSERT INTO staff (username, password_hash, full_name, role) VALUES (?, ?, ?, ?)",
+                    java.sql.Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, username);
+            ps.setString(2, passwordHash);
+            ps.setString(3, fullName);
+            ps.setString(4, role);
+            return ps;
+        }, key);
+        return key.getKey().longValue();
+    }
+
+    @Override
+    public void insertDentist(long staffId, String registrationNo, String specialisation,
+                              BigDecimal consultationFee) {
+        jdbc.update("INSERT INTO dentist (staff_id, registration_no, specialisation, consultation_fee) "
+                  + "VALUES (?, ?, ?, ?)", staffId, registrationNo, specialisation, consultationFee);
+    }
+
+    @Override
+    public int unlockStaff(String username) {
+        return jdbc.update(
+                "UPDATE staff SET locked = FALSE, failed_attempts = 0 WHERE username = ?", username);
+    }
+
+    @Override
+    public int setStaffActive(String username, boolean active) {
+        return jdbc.update("UPDATE staff SET active = ? WHERE username = ?", active, username);
     }
 
     @Override

@@ -188,6 +188,49 @@ public class InMemoryClinicRepository implements ClinicRepository {
         loginFailures.remove(staffId);
     }
 
+    // ---- staff administration (FR-22, FR-03) --------------------------
+
+    @Override
+    public List<Map<String, Object>> findAllStaff() {
+        return List.copyOf(staffByUsername.values());
+    }
+
+    @Override
+    public long insertStaff(String username, String passwordHash, String fullName, String role) {
+        long id = 100L + staffByUsername.size();
+        withStaff(id, username, passwordHash, role, true, false, 0);
+        staffByUsername.get(username).put("full_name", fullName);
+        return id;
+    }
+
+    @Override
+    public void insertDentist(long staffId, String registrationNo, String specialisation,
+                              BigDecimal consultationFee) {
+        dentists.add(new Dtos.DentistDTO(staffId, "Dentist " + staffId,
+                specialisation, consultationFee));
+    }
+
+    @Override
+    public int unlockStaff(String username) {
+        Map<String, Object> row = staffByUsername.get(username);
+        if (row == null) {
+            return 0;
+        }
+        row.put("locked", false);
+        row.put("failed_attempts", 0);
+        return 1;
+    }
+
+    @Override
+    public int setStaffActive(String username, boolean active) {
+        Map<String, Object> row = staffByUsername.get(username);
+        if (row == null) {
+            return 0;
+        }
+        row.put("active", active);
+        return 1;
+    }
+
     @Override
     public List<Dtos.DentistDTO> findActiveDentists() {
         return List.copyOf(dentists);
