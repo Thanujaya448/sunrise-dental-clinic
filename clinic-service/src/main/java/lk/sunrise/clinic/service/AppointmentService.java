@@ -54,9 +54,9 @@ public class AppointmentService {
         if (req.appointmentDate() == null || req.startTime() == null) {
             throw new ValidationException("Appointment date and time are required");
         }
-        if (repository.findPatientByNo(req.patientNo()).isEmpty()) {
-            throw new NotFoundException("No patient with number " + req.patientNo());
-        }
+        Dtos.PatientDTO patient = repository.findPatientByNo(req.patientNo())
+                .orElseThrow(() -> new NotFoundException(
+                        "No patient with number " + req.patientNo()));
 
         Map<String, Object> treatment = repository.findTreatmentByCode(req.treatmentCode())
                 .orElseThrow(() -> new NotFoundException(
@@ -93,7 +93,7 @@ public class AppointmentService {
         String whenText = saved.appointmentDate() + " at " + saved.startTime();
         observers.forEach(o -> o.onAppointmentCreated(
                 saved.appointmentNo(), saved.patientName(), saved.contactNumber(),
-                saved.dentistName(), whenText));
+                patient.email(), saved.dentistName(), whenText));
 
         return saved;
     }

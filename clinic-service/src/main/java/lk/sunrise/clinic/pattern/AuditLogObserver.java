@@ -21,8 +21,8 @@ public class AuditLogObserver implements AppointmentObserver {
 
     @Override
     public void onAppointmentCreated(String appointmentNo, String patientName,
-                                     String contactNumber, String dentistName,
-                                     String whenText) {
+                                     String contactNumber, String patientEmail,
+                                     String dentistName, String whenText) {
         repository.writeAudit("SYSTEM", "APPOINTMENT_CREATED", appointmentNo,
                 "Booked with " + dentistName + " for " + whenText);
     }

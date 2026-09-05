@@ -60,6 +60,12 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- FR-20: appointment confirmations by email -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- BCrypt password hashing (FR-02) -->
         <dependency>
             <groupId>org.springframework.security</groupId>

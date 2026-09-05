@@ -20,9 +20,10 @@ public class RecordingObserver implements AppointmentObserver {
 
     @Override
     public void onAppointmentCreated(String appointmentNo, String patientName,
-                                     String contactNumber, String dentistName,
-                                     String whenText) {
-        created.add(appointmentNo + " -> " + patientName + " with " + dentistName + " on " + whenText);
+                                     String contactNumber, String patientEmail,
+                                     String dentistName, String whenText) {
+        created.add(appointmentNo + " -> " + patientName + " <" + patientEmail + "> with "
+                + dentistName + " on " + whenText);
     }
 
     @Override
