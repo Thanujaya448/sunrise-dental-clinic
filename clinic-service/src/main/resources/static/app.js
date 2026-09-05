@@ -403,7 +403,14 @@ function titleCase(s) {
 function wireAdmin() {
   const tDlg = $('#dlg-treatment');
   const sDlg = $('#dlg-staff');
-  if (!tDlg || !sDlg) return;
+  if (!tDlg || !sDlg) {
+    // Fails loudly. Returning silently once cost an afternoon: the dialogs had
+    // been placed AFTER this script, so every admin listener was skipped and
+    // the buttons looked wired but did nothing.
+    console.error('Admin dialogs are not in the DOM yet - no listeners attached. '
+                + 'Check that <dialog id="dlg-treatment"> appears before <script src="app.js">.');
+    return;
+  }
 
   $('#admin-new-treatment').addEventListener('click', () => openTreatment(null));
   $('#admin-new-staff').addEventListener('click', () => {

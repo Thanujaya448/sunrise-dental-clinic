@@ -26,7 +26,11 @@ Validation is duplicated intentionally: the client checks required fields so the
 receptionist gets an immediate response, and the service re-checks everything
 because the client is never trusted (NFR-04). Figure 21 shows a dentist's own
 session receiving HTTP 403 from a report endpoint although the tab was never
-displayed.
+displayed. The Administrator's screens (Figures 22 and 23) make the point
+positively: prices, treatment durations and staff accounts are maintained
+through the same API, so code normalisation, the five-to-480-minute bound the
+schema also enforces, and BCrypt hashing are written once in
+`AdministrationService` and cannot be lost by a client that forgets them.
 
 The clash rule is duplicated more contentiously: `AppointmentService` checks it
 *and* `trg_appointment_no_overlap` enforces it inside the transaction. Against:

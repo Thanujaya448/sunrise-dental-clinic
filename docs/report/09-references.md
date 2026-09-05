@@ -1,6 +1,5 @@
 # References
 
-*(Harvard. Not counted towards the 4,000 words.)*
 
 Beck, K. (2003) *Test-Driven Development: By Example*. Boston, MA:
 Addison-Wesley.

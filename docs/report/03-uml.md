@@ -1,7 +1,7 @@
 # 3. Requirements modelling and UML
 
-Six diagrams were produced, all in PlantUML with the `.puml` sources committed
-beside the images, so they are versioned, diffable and reviewable in a pull
+Six diagrams were produced in PlantUML, with the `.puml` sources committed
+beside the images so they are versioned, diffable and reviewable in a pull
 request. A binary drawing cannot be diffed, and in practice stops being
 updated.
 
@@ -20,16 +20,16 @@ diagram carries a legend.
 
 One decision is worth defending: authentication is a *precondition* of every use
 case, not an `<<include>>` on each. Twenty-one arrows to *Log In* would be
-defensible and useless, adding no information while obscuring the relationships
-that carry some. It is recorded in each specification instead.
+defensible and useless, obscuring the relationships that carry information. It
+is recorded in each specification instead.
 
 ## 3.2 Domain class diagram
 
 The domain model is an **analysis** model: it describes the problem domain, not
 the classes implementing it (Larman, 2004). `DentistSchedule` appears because a
 dentist's working day is a concept the clinic reasons about, though the code
-holds it as a private helper. A domain model mirroring the implementation would
-add nothing the design class diagram does not show.
+holds it as a private helper. A domain model mirroring the implementation
+would duplicate the design class diagram.
 
 Four relationship kinds are used deliberately, each tied to its consequence in
 the schema. **Multiplicity** is stated at both ends. **Navigability** is shown
@@ -49,10 +49,10 @@ decorative.
 The design class diagram shows the three tiers and the pattern participants in
 each. It was **redrawn from the implemented system**: the first version was
 design intent, and the code diverged from it, naming four controllers, three
-repositories, a mapper and a report factory that were never built. Submitting it
-would have meant submitting a diagram of a system that does not exist. The
-revised version and the sequence diagrams revised with it name only classes
-present in the repository, and §5.5 explains each divergence as a decision.
+repositories, a mapper and a report factory that were never built. Submitting a
+diagram of a system that does not exist was not an option. The revised version
+and its sequence diagrams name only classes present in the repository, and §5.5
+explains each divergence as a decision.
 
 The sequence diagrams cover logging in, booking against a clash, and generating
 a bill. Each marks the HTTP boundary and shows the failure paths beside the

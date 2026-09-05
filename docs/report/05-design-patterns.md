@@ -15,9 +15,9 @@ Four discount categories apply (ASM-12). Each is encapsulated behind a
 `BillingFacade` — shorter, and no interface needed. It was rejected because the
 rules vary independently of how a bill is assembled: under if/else every new
 rule edits a method that is already tested and working, risking the rules that
-pass. With Strategy, adding a fifth rule is adding a class. That is the
-open/closed principle demonstrated rather than asserted, and the eighteen tests
-in `DiscountStrategyTest` prove each rule in isolation, which an if/else chain
+pass. With Strategy, adding a fifth rule is adding a class — the open/closed
+principle demonstrated rather than asserted — and the eighteen tests in
+`DiscountStrategyTest` prove each rule in isolation, which an if/else chain
 would not permit.
 
 **Null Object** completes it: "no discount applies" is itself a strategy
@@ -26,8 +26,8 @@ absent value behaves correctly, so no caller tests for it, and no future caller
 can forget to.
 
 **What it cost.** Six classes where a dozen lines would have worked, and one
-more indirection before the arithmetic is visible. For four rules that is a fair
-exchange; for one fixed rule it would be over-engineering.
+more indirection before the arithmetic is visible — a fair exchange for four
+rules, over-engineering for one.
 
 An abstract `PercentageDiscount` sits between the interface and the three
 percentage rules. This is **Template Method**: the invariant part — multiply,
@@ -50,15 +50,13 @@ Observer a third listener is a new `@Component`. The tests show the decoupling:
 `AppointmentService` is built with a recording observer in one test and an empty
 list in another, and booking succeeds in both.
 
-`NotificationObserver` sends a real confirmation over SMTP (Figures 23, 24), and
-three decisions in it are worth defending. It is `@Async`, because a slow mail
-server must not make the receptionist wait for a booking already committed — the
-log in Figure 23 is written on a `task-1` thread, not the request thread. Every
-failure is caught and logged, never rethrown: an undelivered confirmation is a
-nuisance, but an exception unwinding a committed appointment would be a defect,
-so notification is kept out of the transaction by construction. And sending is
-switched by configuration, not code, so the tests exercise the class that
-ships.
+`NotificationObserver` sends a real confirmation over SMTP (Figures 25, 26), and
+three decisions in it are worth defending. It is `@Async`, so a slow mail server
+cannot make the receptionist wait for a booking already committed — the log in
+Figure 25 is written on a `task-1` thread. Every failure is caught and logged,
+never rethrown: an undelivered confirmation is a nuisance, but an exception
+unwinding a committed appointment would be a defect. And sending is switched by
+configuration, not code, so the tests exercise the class that ships.
 
 **What it cost.** The flow is harder to trace in a debugger, because nothing in
 `book()` names who will be called — the standard price of indirection.
@@ -77,7 +75,7 @@ one would be missed.
 
 **Proxy** *(structural)* appears in both clients: `ClinicServiceProxy` and the
 browser's `request()` expose the service as though local, hiding the HTTP call,
-the `Authorization` header and the meaning of status codes. **Singleton**
+the `Authorization` header and the status codes. **Singleton**
 *(creational)* holds each client's session; justifiably criticised as global
 state that complicates testing (Martin, 2017), it was accepted only because the
 scope is one process with one signed-in user, and appears nowhere in the
