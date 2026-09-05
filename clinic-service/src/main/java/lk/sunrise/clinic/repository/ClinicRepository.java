@@ -23,6 +23,15 @@ public interface ClinicRepository {
     void recordLoginFailure(long staffId);
     void resetLoginFailures(long staffId);
 
+    // ---- staff administration (FR-22, FR-03) --------------------------
+    List<Map<String, Object>> findAllStaff();
+    long insertStaff(String username, String passwordHash, String fullName, String role);
+    void insertDentist(long staffId, String registrationNo, String specialisation,
+                       BigDecimal consultationFee);
+    /** FR-03. Clears the lock AND the counter - the Administrator's answer to a lockout. */
+    int unlockStaff(String username);
+    int setStaffActive(String username, boolean active);
+
     // ---- reference ----------------------------------------------------
     List<Dtos.DentistDTO> findActiveDentists();
     Optional<Map<String, Object>> findTreatmentByCode(String code);

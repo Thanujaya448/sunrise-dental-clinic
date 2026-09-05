@@ -763,3 +763,29 @@ dialog .sub { margin-bottom: 4px; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+
+/* ---------------------------------------------------------------------
+   Administration (FR-21, FR-22). Reuses the existing tokens so the panel
+   inherits both themes without a second palette.
+   --------------------------------------------------------------------- */
+.section-title   { margin: 0 0 4px; font-size: 15px; font-weight: 650; color: var(--ink); }
+.hint            { margin: 0 0 14px; font-size: 13px; color: var(--muted); }
+.btn.tiny        { padding: 5px 12px; font-size: 12.5px; }
+td.num           { text-align: right; font-variant-numeric: tabular-nums; }
+td.mono          { font-family: var(--mono, ui-monospace, Consolas, monospace); }
+#panel-admin .card + .card { margin-top: 18px; }
+#panel-admin td:last-child { display: flex; gap: 6px; justify-content: flex-end; }
+
+dialog .dlg      { display: grid; gap: 12px; min-width: min(440px, 88vw); }
+dialog .dlg h3   { margin: 0 0 2px; font-size: 17px; }
+dialog .dlg label{ display: grid; gap: 5px; font-size: 13px; color: var(--muted); }
+dialog .dlg input, dialog .dlg select {
+  padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--field); color: var(--ink); font: inherit;
+}
+dialog .row-check{ display: flex; align-items: center; gap: 8px; }
+dialog .dlg-error{ margin: 0; padding: 9px 11px; border-radius: 8px; font-size: 13px;
+                   color: var(--error); background: var(--error-bg, transparent);
+                   border: 1px solid var(--error-border); }
+dialog .dlg-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }

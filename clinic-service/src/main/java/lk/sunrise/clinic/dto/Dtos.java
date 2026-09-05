@@ -67,6 +67,14 @@ public final class Dtos {
     public record DentistDTO(Long dentistId, String fullName, String specialisation,
                              BigDecimal consultationFee) { }
 
+    // ---- administration (FR-21, FR-22) ---------------------------------
+    public record TreatmentRequest(String code, String name, BigDecimal price,
+                                   Integer durationMinutes, Boolean active) { }
+
+    public record StaffRequest(String username, String password, String fullName,
+                               String role, String registrationNo,
+                               String specialisation, BigDecimal consultationFee) { }
+
     // ---- errors -------------------------------------------------------
     public record ErrorDTO(String message) { }
 }

@@ -251,6 +251,40 @@
     </section>
 
     <!-- ---------- HELP ---------- -->
+    <section class="panel" id="panel-admin" hidden>
+      <div class="card">
+        <div class="card-body">
+          <h3 class="section-title">Treatments and prices</h3>
+          <p class="hint">Changing a price affects new bookings only. Appointments already
+             booked keep the price they were quoted.</p>
+          <div class="table-wrap">
+            <table id="admin-treatments">
+              <thead><tr><th>Code</th><th>Treatment</th><th>Price (LKR)</th>
+                         <th>Minutes</th><th>Status</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <button type="button" class="btn ghost" id="admin-new-treatment">+ New treatment</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <h3 class="section-title">Staff and dentists</h3>
+          <p class="hint">A locked account is unlocked here. Accounts are deactivated,
+             never deleted, so the audit trail keeps its meaning.</p>
+          <div class="table-wrap">
+            <table id="admin-staff">
+              <thead><tr><th>Username</th><th>Name</th><th>Role</th>
+                         <th>Status</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <button type="button" class="btn ghost" id="admin-new-staff">+ New staff member</button>
+        </div>
+      </div>
+    </section>
+
     <section class="panel" id="panel-help" hidden>
       <div class="card"><div class="card-body help">
         <h3>Booking an appointment</h3>
@@ -327,5 +361,47 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="app.js"></script>
+
+  <dialog id="dlg-treatment">
+    <form method="dialog" class="dlg">
+      <h3 id="dlg-treatment-title">New treatment</h3>
+      <label>Code<input id="t-code" maxlength="6" required></label>
+      <label>Name<input id="t-name" required></label>
+      <label>Price (LKR)<input id="t-price" type="number" min="0" step="0.01" required></label>
+      <label>Duration (minutes)<input id="t-mins" type="number" min="5" max="480" required></label>
+      <label class="row-check"><input id="t-active" type="checkbox" checked> Available for booking</label>
+      <p class="dlg-error" id="t-error" hidden></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn ghost" data-close>Cancel</button>
+        <button type="button" class="btn" id="t-save">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-staff">
+    <form method="dialog" class="dlg">
+      <h3>New staff member</h3>
+      <label>Username<input id="s-username" required></label>
+      <label>Full name<input id="s-name" required></label>
+      <label>Password<input id="s-password" type="password" minlength="8" required></label>
+      <label>Role
+        <select id="s-role">
+          <option value="RECEPTIONIST">Receptionist</option>
+          <option value="DENTIST">Dentist</option>
+          <option value="ADMINISTRATOR">Administrator</option>
+        </select>
+      </label>
+      <div id="s-dentist-fields" hidden>
+        <label>SLMC registration number<input id="s-reg"></label>
+        <label>Specialisation<input id="s-spec" placeholder="General Dentistry"></label>
+        <label>Consultation fee (LKR)<input id="s-fee" type="number" min="0" step="0.01"></label>
+      </div>
+      <p class="dlg-error" id="s-error" hidden></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn ghost" data-close>Cancel</button>
+        <button type="button" class="btn" id="s-save">Create</button>
+      </div>
+    </form>
+  </dialog>
 </body>
 </html>

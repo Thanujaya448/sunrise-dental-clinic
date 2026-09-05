@@ -44,6 +44,26 @@ public class JdbcTreatmentTypeRepository implements TreatmentTypeRepository {
     }
 
     @Override
+    public List<TreatmentType> findAll() {
+        return jdbc.query("SELECT " + COLUMNS + " FROM treatment_type ORDER BY code", MAPPER);
+    }
+
+    @Override
+    public String insert(String code, String name, java.math.BigDecimal price, int durationMinutes) {
+        jdbc.update("INSERT INTO treatment_type (code, name, price, duration_minutes, active) "
+                  + "VALUES (?, ?, ?, ?, TRUE)", code, name, price, durationMinutes);
+        return code;
+    }
+
+    @Override
+    public int update(String code, String name, java.math.BigDecimal price,
+                      int durationMinutes, boolean active) {
+        return jdbc.update("UPDATE treatment_type SET name = ?, price = ?, "
+                         + "duration_minutes = ?, active = ? WHERE code = ?",
+                           name, price, durationMinutes, active, code);
+    }
+
+    @Override
     public Optional<TreatmentType> findByCode(String code) {
         return jdbc.query(
                         "SELECT " + COLUMNS + " FROM treatment_type WHERE code = ?",
