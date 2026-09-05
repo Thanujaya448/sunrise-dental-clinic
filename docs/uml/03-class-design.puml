@@ -213,6 +213,21 @@ package "TIER 2 - lk.sunrise.clinic.service" as T2B {
     view name, so a caller can never
     influence the SQL (NFR-06).
   }
+  class AdministrationService {
+    - encoder : BCryptPasswordEncoder
+    + allTreatments() : List<TreatmentType>
+    + createTreatment(code, name, price, minutes) : TreatmentType
+    + updateTreatment(code, name, price, minutes, active) : TreatmentType
+    + allStaff() : List<Map>
+    + createStaff(username, rawPassword, fullName, role, regNo, spec, fee) : void
+    + unlockAccount(username : String) : void
+    + setActive(username : String, active : boolean) : void
+    ..
+    FR-21, FR-22 and the second half of
+    FR-03. Every rule is checked here, not
+    in the controller, so both clients
+    inherit it (NFR-04).
+  }
   enum ReportType {
     DAILY_REVENUE
     DENTIST_UTILISATION
@@ -381,6 +396,7 @@ ClinicController ..> AuthenticationService : requireRole() >
 ClinicController ..> AppointmentService
 ClinicController ..> BillingFacade
 ClinicController ..> ReportService
+ClinicController ..> AdministrationService
 ClinicController ..> Dtos
 TreatmentController ..> TreatmentTypeRepository
 GlobalExceptionHandler ..> Dtos
@@ -406,6 +422,8 @@ AppointmentObserver <|.. AuditLogObserver
 
 ClinicRepository <|.. JdbcClinicRepository
 TreatmentTypeRepository <|.. JdbcTreatmentTypeRepository
+AdministrationService ..> TreatmentTypeRepository
+AdministrationService ..> ClinicRepository
 JdbcClinicRepository ..> Sql : converts through >
 
 ' ---- TIER 2 to TIER 3 --------------------------------------------------

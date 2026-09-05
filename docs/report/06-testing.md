@@ -76,22 +76,24 @@ Per-requirement rows and the full plan are in Appendix A.
 
 ## 6.6 What the testing found, and coverage read honestly
 
-Six defects are in Appendix A; two were found by testing rather than review. A
-boundary case was first written at 09:35, off the fifteen-minute grid, so it
-failed validation *before* reaching the clash rule — passing while testing
-nothing it claimed. More seriously, `tokenExpires` set the session window to
-zero minutes, stamping the expiry at exactly "now"; whether the check saw that
-as past depended on the platform clock, so it passed on Linux and in CI and
-failed intermittently on Windows. The fix sets a window already elapsed.
-`Thread.sleep` was rejected: it hides the race behind a delay and slows every
-run. A test whose result depends on clock granularity is worse than no test,
-because it teaches a team to ignore red builds.
+Eight defects are in Appendix A. A boundary case written at 09:35, off the
+fifteen-minute grid, failed validation *before* reaching the clash rule —
+passing while testing nothing it claimed. More seriously, `tokenExpires` stamped the
+session expiry at exactly "now", so whether the check saw it as past depended on
+the platform clock: green on Linux and in CI, intermittently red on Windows. The
+fix sets a window already elapsed; `Thread.sleep` was rejected because it hides
+the race behind a delay. A test whose result depends on clock granularity is
+worse than no test: it teaches a team to ignore red builds. Four of the eight were found only by *opening* the
+artefact — a page, a panel, a PDF — which is the habit the suite cannot replace.
 
-Line coverage is 47.5% and branch coverage 73.8% (Figure 28). The headline is
+Line coverage is 48.8% and branch coverage 71.6% (Figure 28). The headline is
 the least interesting number available, because coverage measures what was
 *executed*, not what was *proved*. Two things matter more: branch coverage where
-the decisions are — `service` 91.3%, `pattern` 94.4% — and where the uncovered
-code sits. It sits in `repository` (5%) and `api` (0%), correctly: one is SQL,
-proved against real MySQL; the other delegates rather than decides, so covering
-it would test Spring's request mapping. Raising the headline honestly means
-`@WebMvcTest` slice tests, recorded in §8 as future work rather than padding.
+the decisions are — `service` 83%, `domain` 77%, `pattern` 70% — and where the
+uncovered code sits. It sits in `repository` (4% of instructions) and `api`
+(0%), correctly: one is SQL, proved against real MySQL; the other delegates
+rather than decides, so covering it would test Spring's request mapping. The
+`pattern` figure is held down by `NotificationObserver`, a third of that
+package, which opens an SMTP connection the unit suite deliberately does not.
+Raising the headline honestly means `@WebMvcTest` slice tests and a mail sender
+behind an interface — §8, as future work rather than padding.

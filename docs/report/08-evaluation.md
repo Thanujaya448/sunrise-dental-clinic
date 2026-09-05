@@ -30,14 +30,16 @@ only logged, because the observer contract does not carry the address on that
 path. There is no SMS gateway and no tax model.
 
 **Testing has a shaped gap.** Controllers sit at 0% coverage and the repository
-at 5%; defensible, but `@WebMvcTest` slice tests would close it, and the
-search-speed requirement was verified against seeded data only.
+at 4%; defensible, but `@WebMvcTest` slice tests would close it. `JavaMailSender`
+should also sit behind an interface so the send path can be asserted without a
+server, and the search-speed requirement was verified against seeded data only.
 
-**What I would do differently.** Two process failures, caught late. The design
+**What I would do differently.** Three process failures, caught late. The design
 class diagram was drawn as intent and left to drift, naming five classes never
-built; regenerating diagrams from the implementation at each merge would have
-caught it in a pull request. And a development database password reached an
-early commit before the runtime configuration in §7.3 was adopted. The password
-has since been rotated and the repository holds only placeholders, but the
-lesson is that secret scanning belongs in the pipeline from the first commit: a
-credential cannot be un-committed from a public history, only invalidated.
+built; it was then published truncated, because PlantUML crops at 4,096 pixels
+without saying so. Regenerating diagrams from the code at each merge would have
+caught the first, and opening the output the second. And a development database
+password reached an early commit. It has been rotated and the repository holds
+placeholders only, but secret scanning belongs in the pipeline from the first
+commit: a credential cannot be un-committed from a public history, only
+invalidated.

@@ -286,35 +286,36 @@ is printed to the workflow run's summary page.
 
 **How to read these figures honestly.** Coverage measures what was *executed*,
 not what was *proved*. A single test that calls every method and asserts nothing
-scores 100%. So the headline 47.5% is the least interesting number on this page,
+scores 100%. So the headline 48.8% is the least interesting number on this page,
 and quoting it alone — in either direction — would misrepresent the suite.
 
 Two things matter more:
 
 1. **Branch coverage on the packages that hold decisions.** A branch is an
-   `if`, a boundary, a rule that can go either way. `service` is at **91.3%**
-   and `pattern` at **94.4%** — nearly every decision the clinic's rules can
-   make is exercised by a test.
+   `if`, a boundary, a rule that can go either way. `service` is at **83%**,
+   `domain` at **77%** and `pattern` at **70%** — the decisions the clinic's
+   rules can make are exercised by a test, and the `pattern` figure is held
+   down by one class that decides nothing (see the table).
 2. **Where the uncovered lines are.** They are concentrated in exactly the
    places that *should* be uncovered by unit tests.
 
-Measured run, `mvn -B verify`. **Note on which metric is quoted:** the table
-below reports **line** coverage, taken from `jacoco.csv`. The first `Cov.`
-column on JaCoCo's own HTML page is **instruction** coverage, which is a
-slightly different number for the same code — `pattern`, for example, is 65% by
-instruction and 69% by line. Both are given here so the figures in this document
-and the figures in the screenshot can be reconciled.
+Measured run, `mvn -B verify`: **119 tests, 0 failures, 0 errors, 0 skipped**,
+48 classes analysed. **Note on which metric is quoted:** the table below reports
+**line** coverage, computed from JaCoCo's Missed/Total line columns. The first
+`Cov.` column on JaCoCo's own HTML page is **instruction** coverage, a slightly
+different number for the same code. Both are given so the figures in this
+document and the figures in Figure 28 can be reconciled.
 
 | Package | Line cov. | Instruction cov. | Branch cov. | Reading |
 |---|---:|---:|---:|---|
-| `lk.sunrise.clinic.service` | **87.2%** | 87% | **91.3%** | The business logic. This is the figure that matters, and it is the highest in the project. |
-| `lk.sunrise.clinic.pattern` | 69.0% | 65% | **94.4%** | Every discount *decision* is covered. The uncovered lines are `NotificationObserver` and `AuditLogObserver` bodies — logging, not logic. |
+| `lk.sunrise.clinic.service` | **88.6%** | 87% | **83%** | The business logic, including `AdministrationService`. This is the figure that matters, and it is the highest in the project. |
 | `lk.sunrise.clinic.exception` | 100% | 100% | n/a | Every domain exception is thrown by a test — no dead exception types. |
-| `lk.sunrise.clinic.domain` | 45.2% | 55% | 77.3% | `Appointment.overlapsWith()` is fully covered; the shortfall is unused accessors on `Patient` and `TreatmentType`. Line coverage penalises getters; branch coverage shows the rule itself is proved. |
-| `lk.sunrise.clinic.dto` | 63.6% | 79% | n/a | Java records — generated accessors. |
-| `lk.sunrise.clinic.repository` | 6.7% | 5% | 20.0% | **Deliberately low.** This layer is SQL. Executing it in a unit test would prove only that JDBC works; it is proved instead against a real MySQL 8 server in section 6. |
-| `lk.sunrise.clinic.api` | 0.0% | 0% | 0.0% | **Deliberately zero.** Controllers delegate and do not decide. Covering them would test Spring's request mapping, not the clinic's rules; they are proved by the manual end-to-end tests in section 7. |
-| **Overall** | **47.5%** | 47% | **73.8%** | Dominated by the two layers that are intentionally untested here. |
+| `lk.sunrise.clinic.domain` | 61.6% | 67% | **77%** | `Appointment.overlapsWith()` is fully covered; the shortfall is unused accessors on `Patient` and `TreatmentType`. Line coverage penalises getters; branch coverage shows the rule itself is proved. |
+| `lk.sunrise.clinic.dto` | 53.8% | 66% | n/a | Java records — generated accessors. |
+| `lk.sunrise.clinic.pattern` | 42.6% | 45% | 70% | Every discount *decision* is covered. The figure fell when `NotificationObserver` became a real SMTP sender: at 115 of the package's 318 lines it is a third of the package, it opens a network connection, and the unit suite deliberately does not. Putting `JavaMailSender` behind an interface would let the send path be asserted without a server. |
+| `lk.sunrise.clinic.repository` | 5.8% | 4% | 20% | **Deliberately low.** This layer is SQL. Executing it in a unit test would prove only that JDBC works; it is proved instead against a real MySQL 8 server in section 6. |
+| `lk.sunrise.clinic.api` | 0.0% | 0% | 0% | **Deliberately zero.** Controllers delegate and do not decide. Covering them would test Spring's request mapping, not the clinic's rules; they are proved by the manual end-to-end tests in section 7. |
+| **Overall** | **48.8%** | 46% | **71.6%** | Dominated by the layers that are intentionally untested here. |
 
 Stating the gap and defending it is worth more than raising the headline figure
 by adding tests that assert nothing. If the number needed to rise, the honest
@@ -356,8 +357,8 @@ rejection does not happen.
 ## 7. Manual test cases — presentation tier
 
 Automated tests cannot prove that a receptionist can use the screen. These are
-run by hand against the running system, and the evidence is a screenshot of
-**your own** system taken at the moment of the test.
+run by hand against the running system, and the evidence is a screenshot taken
+at the moment of the test. The figures referenced below are those screenshots.
 
 > **Evidence must be real.** Every screenshot in the report has to come from
 > your own running application against your own MySQL server. A fabricated or
@@ -397,9 +398,8 @@ tests do something than any coverage figure.
 | 4 | Browser rendering, dark mode | Toast messages were unreadable: `background: var(--ink)` inverts to near-white behind white text | Dedicated `--toast-bg` / `--toast-fg` tokens defined per theme |
 | 5 | `AppointmentServiceTest` | The buffer boundary case was first written at 09:35, which is not on the 15-minute grain, so it failed validation before ever reaching the clash rule — the test was not testing what it claimed | Boundary moved to the adjacent legal slots, 09:30 (refused) and 09:15 (accepted) |
 | 6 | `AuthenticationServiceTest` on Windows | **A flaky test.** `tokenExpires` set the session window to zero minutes, stamping the expiry at exactly "now". Whether the subsequent check saw that as past depended on the platform clock's resolution: it passed consistently on Linux, but on Windows, where `LocalDateTime.now()` can return the same value on two consecutive calls, it failed intermittently. The suite was green on one operating system and red on another for the same commit | The window is now set to a value that has *already* elapsed (`-1`), so the token is stamped a minute in the past and the race cannot occur. A `Thread.sleep` was rejected: it would have hidden the race behind a delay rather than removing it, and slow tests are the first thing a team stops running |
-
-> Add any defect your own testing turns up. A defect you found and fixed is
-> worth more marks than a suite that never went red.
+| 7 | Opening the Administration tab | **Every button in the Administration panel was inert.** The two `<dialog>` elements had been inserted immediately before `</body>`, which placed them *after* `<script src="app.js">`. At load, `wireAdmin()` found `null` for both, hit its early-return guard and attached no listeners at all — so the panel rendered perfectly and did nothing | Dialogs moved above the script tag. The silent `return` was replaced with a `console.error` naming the cause, because a guard that hides its own failure turns a five-second fix into an afternoon |
+| 8 | Opening the generated PDF | **A quarter of the design class diagram was missing.** PlantUML's default `PLANTUML_LIMIT_SIZE` is 4096 pixels and it crops silently — no warning, no error, no non-zero exit. The PNG was exactly 4096 wide against a true width of 5,901, and the lost strip held the whole `repository` package and the tier-to-pattern legend | Re-rendered with `-DPLANTUML_LIMIT_SIZE=16384`, and every diagram checked for a dimension of exactly 4096. The general lesson: a build step that "succeeded" has not been verified until its output has been looked at |
 
 
 ## A.9 Use case specifications
